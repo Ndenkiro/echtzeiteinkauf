@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE: ghcr.io/ndenkiro/echtzeiteinkauf
 
 jobs:
   build-and-deploy:
@@ -35,7 +35,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -52,14 +52,12 @@ jobs:
             set -e
             cd /opt/echtzeiteinkauf
 
-            # Pull latest image
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/${{ github.repository }}:latest
+            docker pull ghcr.io/ndenkiro/echtzeiteinkauf:latest
 
-            # Update .env with latest secrets (written by this action)
             cat > .env << 'ENVEOF'
-            GITHUB_REPO=${{ github.repository }}
+            GITHUB_REPO=ndenkiro/echtzeiteinkauf
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -67,11 +65,8 @@ jobs:
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
             ENVEOF
 
-            # Rolling restart (zero-downtime)
             docker compose pull
             docker compose up -d --remove-orphans
-
-            # Cleanup old images
             docker image prune -f
 
             echo "✓ Deployed at $(date)"
