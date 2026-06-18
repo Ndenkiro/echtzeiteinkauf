@@ -35,7 +35,7 @@ export default async function StorePage({ params }: Props) {
     .order('category')
     .order('name')
 
-  const categories = [...new Set((products ?? []).map(p => p.category).filter(Boolean))]
+  const categories = Array.from(new Set((products ?? []).map(p => p.category).filter(Boolean) as string[]))
 
   return (
     <>
