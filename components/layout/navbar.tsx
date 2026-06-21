@@ -31,12 +31,12 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="hidden md:block text-sm font-semibold border border-gray-200 rounded-lg px-4 py-2 hover:border-red hover:text-red transition-all">
+          <button className="hidden md:block text-sm font-bold text-gray-600 border border-gray-200 rounded-xl px-4 py-2.5 hover:border-red hover:text-red transition-all">
             Anmelden
           </button>
           <button
             onClick={() => document.dispatchEvent(new Event('open-cart'))}
-            className="relative flex items-center gap-2 bg-red text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-red-dark transition-colors"
+            className="relative flex items-center gap-2 bg-red text-white rounded-xl px-5 py-2.5 text-sm font-black hover:bg-red-dark transition-all active:scale-95 shadow-[0_4px_14px_rgba(227,6,19,0.3)]"
           >
             <ShoppingCart size={16} />
             <span className="hidden sm:inline">Warenkorb</span>

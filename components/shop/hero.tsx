@@ -12,6 +12,16 @@ const SUGGESTIONS = [
   { label: 'Hauptmarkt 1',        sub: '90402 Nürnberg' },
 ]
 
+const FLOATING_ITEMS = [
+  { emoji: '🥦', top: '8%',  left: '6%',  size: 52, delay: '0s',    rot: -8  },
+  { emoji: '🍅', top: '64%', left: '3%',  size: 44, delay: '0.6s',  rot: 10  },
+  { emoji: '🥛', top: '14%', left: '85%', size: 48, delay: '0.3s',  rot: 6   },
+  { emoji: '🍞', top: '72%', left: '90%', size: 50, delay: '0.9s',  rot: -6  },
+  { emoji: '🧀', top: '42%', left: '93%', size: 38, delay: '1.2s',  rot: 14  },
+  { emoji: '🍎', top: '85%', left: '20%', size: 40, delay: '0.4s',  rot: -10 },
+  { emoji: '🥕', top: '6%',  left: '42%', size: 36, delay: '1.5s',  rot: 8   },
+]
+
 export function Hero() {
   const [addr, setAddr] = useState('')
   const setAddress = useCart(s => s.setAddress)
@@ -21,42 +31,69 @@ export function Hero() {
     if (!address.trim()) { toast.error('Bitte Adresse eingeben'); return }
     setAddress(address)
     document.getElementById('stores')?.scrollIntoView({ behavior: 'smooth' })
-    toast.success('Märkte in Ihrer Nähe werden angezeigt 📍')
+    toast.success('Märkte in Ihrer Nähe werden angezeigt')
   }
 
   return (
-    <section className="pt-16 bg-red min-h-[580px] flex items-center relative overflow-hidden">
-      {/* Background orbs */}
-      <div className="absolute right-[-80px] top-[-80px] w-[400px] h-[400px] rounded-full bg-orange/15 pointer-events-none" />
-      <div className="absolute left-[-60px] bottom-[-60px] w-[250px] h-[250px] rounded-full bg-orange/10 pointer-events-none" />
+    <section className="relative pt-16 min-h-[640px] flex items-center overflow-hidden bg-[#0A0A0A]">
+      {/* Deep red glow field, not a flat fill */}
+      <div className="absolute inset-0 bg-gradient-to-br from-red via-[#C30410] to-[#7A0009]" />
+      <div className="absolute -right-32 -top-32 w-[560px] h-[560px] rounded-full bg-orange/20 blur-3xl" />
+      <div className="absolute -left-24 bottom-0 w-[380px] h-[380px] rounded-full bg-black/30 blur-3xl" />
+      <div className="absolute inset-0 opacity-[0.04]" style={{
+        backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+        backgroundSize: '28px 28px',
+      }} />
+
+      {/* Floating grocery items — the signature element */}
+      <div className="absolute inset-0 pointer-events-none hidden lg:block">
+        {FLOATING_ITEMS.map((it, i) => (
+          <div
+            key={i}
+            className="absolute opacity-90 animate-float"
+            style={{
+              top: it.top, left: it.left, fontSize: it.size,
+              animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
+              filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
+            }}
+          >{it.emoji}</div>
+        ))}
+      </div>
 
       <div className="max-w-6xl mx-auto px-6 py-16 w-full grid md:grid-cols-2 gap-12 items-center relative z-10">
         {/* Left */}
         <div>
-          <div className="inline-flex items-center gap-1.5 bg-orange text-black text-xs font-black px-3 py-1.5 rounded-full mb-5 uppercase tracking-wide">
-            ⚡ Neu in Deutschland
+          <div className="inline-flex items-center gap-2 bg-orange text-black text-xs font-black px-3.5 py-2 rounded-full mb-6 uppercase tracking-wide shadow-[0_4px_20px_rgba(247,168,0,0.4)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+            Neu in Deutschland
           </div>
-          <h1 className="text-5xl md:text-6xl font-black text-white leading-[1.05] tracking-tight mb-4">
-            Einkäufe in<br/><span className="text-orange">2 Stunden</span><br/>geliefert
+          <h1 className="text-[3.4rem] md:text-[4.6rem] font-black text-white leading-[0.95] tracking-[-0.03em] mb-5">
+            Einkäufe<br/>
+            <span className="relative inline-block">
+              <span className="relative z-10">in 2 Stunden</span>
+              <span className="absolute left-0 right-0 bottom-2 h-4 bg-orange/90 -z-0 skew-x-[-8deg]" />
+            </span><br/>
+            geliefert
           </h1>
-          <p className="text-white/75 text-lg leading-relaxed mb-8 max-w-md">
+          <p className="text-white/70 text-lg leading-relaxed mb-9 max-w-md font-medium">
             LIDL, ALDI, REWE und mehr — persönliche Shopper kaufen und liefern direkt zu Ihnen nach Hause.
           </p>
-          <div className="flex gap-6">
+          <div className="flex gap-7">
             {[['2h','Lieferzeit'],['8+','Märkte'],['4.9★','Bewertung'],['1.2K','Bestellungen']].map(([n,l]) => (
-              <div key={l} className="text-center">
-                <div className="text-2xl font-black text-white tracking-tight">{n}</div>
-                <div className="text-xs text-white/60 mt-0.5 font-medium">{l}</div>
+              <div key={l} className="text-left">
+                <div className="text-[1.7rem] font-black text-white tracking-tight leading-none">{n}</div>
+                <div className="text-[0.7rem] text-white/55 mt-1.5 font-bold uppercase tracking-wide">{l}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right: Address card */}
-        <div className="bg-white rounded-3xl p-6 shadow-2xl">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">📍 Geben Sie Ihre Adresse ein</p>
+        <div className="bg-white rounded-[28px] p-7 shadow-[0_24px_64px_rgba(0,0,0,0.45)] relative">
+          <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full bg-orange flex items-center justify-center text-xl shadow-lg rotate-12">🛒</div>
+          <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4">📍 Geben Sie Ihre Adresse ein</p>
 
-          <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-4 py-3 mb-4 focus-within:border-red transition-colors">
+          <div className="flex items-center gap-2 border-2 border-gray-100 bg-gray-50 rounded-2xl px-4 py-3.5 mb-5 focus-within:border-red focus-within:bg-white transition-all">
             <MapPin size={18} className="text-gray-400 flex-shrink-0" />
             <input
               type="text"
@@ -64,25 +101,25 @@ export function Hero() {
               onChange={e => setAddr(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && go(addr)}
               placeholder="Straße, Hausnummer, PLZ..."
-              className="flex-1 outline-none text-sm bg-transparent text-gray-900 placeholder-gray-400"
+              className="flex-1 outline-none text-sm bg-transparent text-gray-900 placeholder-gray-400 font-medium"
             />
           </div>
 
-          <div className="flex flex-col gap-2 mb-4">
+          <div className="flex flex-col gap-2 mb-5">
             {SUGGESTIONS.map(s => (
               <button
                 key={s.label}
                 onClick={() => { setAddr(`${s.label}, ${s.sub}`); go(`${s.label}, ${s.sub}`) }}
-                className="flex items-center gap-3 px-3 py-2.5 border border-gray-100 rounded-xl text-left hover:border-red hover:bg-red/5 transition-all group"
+                className="flex items-center gap-3 px-3.5 py-3 border border-gray-100 rounded-2xl text-left hover:border-red hover:bg-red/[0.04] transition-all group"
               >
-                <div className="w-8 h-8 rounded-lg bg-red/10 flex items-center justify-center flex-shrink-0">
-                  <MapPin size={14} className="text-red" />
+                <div className="w-9 h-9 rounded-xl bg-red/10 flex items-center justify-center flex-shrink-0 group-hover:bg-red group-hover:scale-110 transition-all">
+                  <MapPin size={14} className="text-red group-hover:text-white transition-colors" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">{s.label}</div>
+                  <div className="text-sm font-bold text-gray-900">{s.label}</div>
                   <div className="text-xs text-gray-400">{s.sub}</div>
                 </div>
-                <ArrowRight size={14} className="text-gray-300 group-hover:text-red ml-auto transition-colors" />
+                <ArrowRight size={14} className="text-gray-300 group-hover:text-red group-hover:translate-x-1 ml-auto transition-all" />
               </button>
             ))}
           </div>
@@ -90,12 +127,20 @@ export function Hero() {
           <button
             onClick={() => go(addr)}
             disabled={addr.length < 4}
-            className="btn-red w-full py-4 text-base"
+            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
           >
             Märkte in meiner Nähe anzeigen <ArrowRight size={18} />
           </button>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+          50% { transform: translateY(-18px) rotate(var(--rot, 0deg)); }
+        }
+        .animate-float { animation: float 5s ease-in-out infinite; }
+      `}</style>
     </section>
   )
 }
