@@ -34,7 +34,7 @@ export function Hero() {
   return (
     <section className="relative pt-16 min-h-[640px] flex items-center overflow-hidden bg-[#0A0A0A]">
       {/* Deep red glow field, not a flat fill */}
-      <div className="absolute inset-0 bg-gradient-to-br from-red via-[#C30410] to-[#7A0009]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-red via-[#C00A5C] to-[#6E0339]" />
       <div className="absolute -right-32 -top-32 w-[560px] h-[560px] rounded-full bg-orange/20 blur-3xl" />
       <div className="absolute -left-24 bottom-0 w-[380px] h-[380px] rounded-full bg-black/30 blur-3xl" />
       <div className="absolute inset-0 opacity-[0.04]" style={{
