@@ -80,8 +80,8 @@ export function Hero() {
           <h1 className="text-[3.4rem] md:text-[4.6rem] font-black text-white leading-[0.95] tracking-[-0.03em] mb-5">
             Einkäufe<br/>
             <span className="relative inline-block px-1">
-              <span className="absolute inset-x-0 bottom-1 h-5 bg-orange -z-10 -skew-x-6 rounded-sm" aria-hidden="true" />
-              in 2 Stunden
+              <span className="absolute inset-0 bg-orange -z-10 rounded-md" aria-hidden="true" />
+              <span className="relative text-black">in 2 Stunden</span>
             </span><br/>
             geliefert
           </h1>
