@@ -1,4 +1,32 @@
 export function Footer() {
+  const columns = [
+    {
+      title: 'Einkaufen',
+      links: [
+        { label: 'Märkte', href: '/#stores' },
+        { label: 'Produkte', href: '/#stores' },
+        { label: "So funktioniert's", href: '/#how' },
+      ],
+    },
+    {
+      title: 'Shopper',
+      links: [
+        { label: 'Shopper werden', href: '/#shopper' },
+        { label: 'App herunterladen', href: '/#app' },
+        { label: 'FAQ', href: '/#shopper' },
+      ],
+    },
+    {
+      title: 'Unternehmen',
+      links: [
+        { label: 'Über uns', href: '/ueber-uns' },
+        { label: 'Datenschutz', href: '/datenschutz' },
+        { label: 'Impressum', href: '/impressum' },
+        { label: 'AGB', href: '/agb' },
+      ],
+    },
+  ]
+
   return (
     <footer className="bg-black border-t border-white/10 py-12 px-6">
       <div className="max-w-6xl mx-auto">
@@ -9,29 +37,29 @@ export function Footer() {
               Echtzeiteinkauf
             </div>
             <p className="text-white/50 text-sm leading-relaxed mb-4">
-              Ihre Einkaufe in 2 Stunden geliefert.
+              Ihre Einkäufe in 2 Stunden geliefert.
             </p>
             <div className="flex flex-col gap-2 text-white/50 text-sm">
-              <span>✉️ kontakt@echtzeiteinkauf.de</span>
-              <span>📞 +49 152 27406823</span>
-              <span>📍 Nuremberg, Germany</span>
+              <a href="mailto:kontakt@echtzeiteinkauf.de" className="hover:text-white transition-colors">✉️ kontakt@echtzeiteinkauf.de</a>
+              <a href="tel:+4915227406823" className="hover:text-white transition-colors">📞 +49 152 27406823</a>
+              <span>📍 Nürnberger Str. 134, 90762 Fürth</span>
             </div>
           </div>
-          {[
-            { title: 'Einkaufen',    links: ['Markte', 'Produkte', 'Preise'] },
-            { title: 'Shopper',      links: ['Shopper werden', 'Verdienst', 'FAQ'] },
-            { title: 'Unternehmen', links: ['Uber uns', 'Datenschutz', 'Impressum', 'AGB'] },
-          ].map(col => (
+
+          {columns.map(col => (
             <div key={col.title}>
               <div className="text-white/40 text-xs font-black uppercase tracking-widest mb-4">{col.title}</div>
               <div className="flex flex-col gap-2">
                 {col.links.map(l => (
-                  <a key={l} href="#" className="text-white/50 text-sm hover:text-white transition-colors">{l}</a>
+                  <a key={l.label} href={l.href} className="text-white/50 text-sm hover:text-white transition-colors">
+                    {l.label}
+                  </a>
                 ))}
               </div>
             </div>
           ))}
         </div>
+
         <div className="border-t border-white/10 pt-6 flex flex-wrap items-center justify-between gap-4">
           <div className="text-white/30 text-xs">© 2026 Echtzeiteinkauf. Alle Rechte vorbehalten.</div>
           <div className="flex gap-2">
