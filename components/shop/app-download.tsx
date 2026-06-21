@@ -6,40 +6,14 @@ export function AppDownload() {
       <div className="absolute -right-24 -bottom-24 w-[340px] h-[340px] rounded-full bg-orange/15 blur-3xl" />
 
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
-        {/* Left: phone mockup */}
+        {/* Left: phone mockup photo */}
         <div className="flex justify-center md:justify-start">
-          <div className="relative">
-            <div className="w-[230px] h-[470px] bg-black rounded-[36px] border-[6px] border-gray-800 shadow-[0_30px_80px_rgba(0,0,0,0.5)] overflow-hidden relative">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-b-2xl z-10" />
-              <div className="w-full h-full bg-gradient-to-b from-red to-[#6E0339] flex flex-col">
-                <div className="px-4 pt-9 pb-3 flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-xs">🛒</div>
-                  <span className="text-white font-black text-xs">ECHTZEITEINKAUF</span>
-                </div>
-                <div className="bg-white flex-1 rounded-t-2xl mt-1 p-3">
-                  <div className="bg-gray-100 rounded-xl h-7 mb-3 flex items-center px-3 text-[10px] text-gray-400">Suche Produkte...</div>
-                  <div className="bg-orange/20 rounded-xl h-16 mb-3" />
-                  <div className="grid grid-cols-4 gap-2 mb-3">
-                    {['🍅','🥛','🍞','🥩'].map((e,i) => (
-                      <div key={i} className="bg-gray-50 rounded-lg h-12 flex items-center justify-center text-lg">{e}</div>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    {[1,2].map(i => (
-                      <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-                        <div className="w-8 h-8 bg-gray-200 rounded" />
-                        <div className="flex-1 h-2 bg-gray-200 rounded" />
-                        <div className="w-8 h-3 bg-red/30 rounded" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-orange px-4 py-3 flex items-center justify-between">
-                  <span className="text-black text-[11px] font-black">🛒 Warenkorb</span>
-                  <span className="text-black text-[11px] font-black">12,46 €</span>
-                </div>
-              </div>
-            </div>
+          <div className="relative w-[280px] md:w-[320px]">
+            <img
+              src="/app-phone-mockup.jpg"
+              alt="Echtzeiteinkauf App"
+              className="w-full h-auto rounded-[28px] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+            />
             <div className="absolute -top-4 -right-4 w-14 h-14 rounded-full bg-orange flex items-center justify-center text-2xl rotate-12 shadow-lg">⚡</div>
           </div>
         </div>
