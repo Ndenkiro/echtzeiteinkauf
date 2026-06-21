@@ -17,16 +17,16 @@ export function Navbar() {
   }, [])
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 bg-white/92 backdrop-blur-md transition-shadow ${scrolled ? 'shadow-md' : ''} border-b border-gray-100`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 bg-white transition-shadow ${scrolled ? 'shadow-md' : ''} border-b border-gray-200`}>
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 font-black text-red text-lg tracking-tight">
           <Image src="/logo.png" alt="Echtzeiteinkauf" width={36} height={36} className="rounded-full" priority />
-          Echtzeiteinkauf
+          <span className="text-gray-900">Echtzeiteinkauf</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-7">
           {[['#stores','Märkte'],['#how','So funktioniert\'s'],['#shopper','Shopper werden']].map(([href,label]) => (
-            <a key={href} href={href} className="text-sm font-medium text-gray-500 hover:text-red transition-colors">{label}</a>
+            <a key={href} href={href} className="text-sm font-bold text-gray-800 hover:text-red transition-colors">{label}</a>
           ))}
         </div>
 
