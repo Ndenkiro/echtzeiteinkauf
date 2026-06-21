@@ -31,9 +31,9 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/anmelden" className="hidden md:block text-sm font-bold text-gray-700 border border-gray-300 rounded-xl px-4 py-2.5 hover:border-red hover:text-red transition-all bg-white">
+          <button className="hidden md:block text-sm font-bold text-gray-700 border border-gray-300 rounded-xl px-4 py-2.5 hover:border-red hover:text-red transition-all bg-white">
             Anmelden
-          </Link>
+          </button>
           <button
             onClick={() => document.dispatchEvent(new Event('open-cart'))}
             className="relative flex items-center gap-2 bg-red text-white rounded-xl px-5 py-2.5 text-sm font-black hover:bg-red-dark transition-all active:scale-95 shadow-[0_4px_14px_rgba(227,6,19,0.3)]"
