@@ -6,6 +6,7 @@ import { StoreGrid } from '@/components/shop/store-grid'
 import { HowItWorks } from '@/components/shop/how-it-works'
 import { Features } from '@/components/shop/features'
 import { ShopperCTA } from '@/components/shop/shopper-cta'
+import { AppDownload } from '@/components/shop/app-download'
 import { Footer } from '@/components/layout/footer'
 
 export const revalidate = 300 // ISR: refresh every 5 min
@@ -29,6 +30,7 @@ export default async function HomePage() {
         <HowItWorks />
         <Features />
         <ShopperCTA />
+        <AppDownload />
       </main>
       <Footer />
     </>
