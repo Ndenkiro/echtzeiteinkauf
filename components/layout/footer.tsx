@@ -4,7 +4,10 @@ export function Footer() {
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-4 gap-10 mb-10">
           <div>
-            <div className="text-white font-black text-lg mb-3">🛒 Echtzeiteinkauf</div>
+            <div className="flex items-center gap-2 text-white font-black text-lg mb-3">
+              <img src="/logo.png" alt="Echtzeiteinkauf" className="w-8 h-8 rounded-full" />
+              Echtzeiteinkauf
+            </div>
             <p className="text-white/50 text-sm leading-relaxed mb-4">
               Ihre Einkaufe in 2 Stunden geliefert.
             </p>

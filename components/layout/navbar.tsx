@@ -1,6 +1,7 @@
 'use client'
 // components/layout/navbar.tsx
 import Link from 'next/link'
+import Image from 'next/image'
 import { ShoppingCart, Menu } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
 import { useState, useEffect } from 'react'
@@ -19,7 +20,7 @@ export function Navbar() {
     <nav className={`fixed top-0 left-0 right-0 z-50 bg-white/92 backdrop-blur-md transition-shadow ${scrolled ? 'shadow-md' : ''} border-b border-gray-100`}>
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 font-black text-red text-lg tracking-tight">
-          <div className="w-8 h-8 rounded-full border-2 border-red flex items-center justify-center text-sm">🛒</div>
+          <Image src="/logo.png" alt="Echtzeiteinkauf" width={36} height={36} className="rounded-full" priority />
           Echtzeiteinkauf
         </Link>
 
