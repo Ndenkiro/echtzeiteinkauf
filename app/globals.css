@@ -26,4 +26,24 @@
   .card {
     @apply bg-white border border-gray-100 rounded-2xl p-5 shadow-sm;
   }
+
+  /* Legal pages (Über uns, Datenschutz, Impressum, AGB) */
+  .prose-legal h2 {
+    @apply text-xl font-black text-gray-900 mt-10 mb-3 first:mt-0;
+  }
+  .prose-legal h3 {
+    @apply text-base font-bold text-gray-900 mt-6 mb-2;
+  }
+  .prose-legal p {
+    @apply text-sm text-gray-600 leading-relaxed mb-3;
+  }
+  .prose-legal ul {
+    @apply text-sm text-gray-600 leading-relaxed mb-3 list-disc pl-5 space-y-1;
+  }
+  .prose-legal a {
+    @apply text-red font-semibold hover:underline;
+  }
+  .prose-legal strong {
+    @apply font-bold text-gray-900;
+  }
 }
