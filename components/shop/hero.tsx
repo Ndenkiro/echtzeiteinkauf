@@ -13,13 +13,10 @@ const SUGGESTIONS = [
 ]
 
 const FLOATING_ITEMS = [
-  { emoji: '🥦', top: '8%',  left: '6%',  size: 52, delay: '0s',    rot: -8  },
-  { emoji: '🍅', top: '64%', left: '3%',  size: 44, delay: '0.6s',  rot: 10  },
-  { emoji: '🥛', top: '14%', left: '85%', size: 48, delay: '0.3s',  rot: 6   },
-  { emoji: '🍞', top: '72%', left: '90%', size: 50, delay: '0.9s',  rot: -6  },
-  { emoji: '🧀', top: '42%', left: '93%', size: 38, delay: '1.2s',  rot: 14  },
-  { emoji: '🍎', top: '85%', left: '20%', size: 40, delay: '0.4s',  rot: -10 },
-  { emoji: '🥕', top: '6%',  left: '42%', size: 36, delay: '1.5s',  rot: 8   },
+  { emoji: '🥦', top: '10%', left: '2%',  size: 46, delay: '0s',   rot: -8  },
+  { emoji: '🍅', top: '78%', left: '1%',  size: 40, delay: '0.6s', rot: 10  },
+  { emoji: '🥛', top: '12%', left: '94%', size: 42, delay: '0.3s', rot: 6   },
+  { emoji: '🧀', top: '80%', left: '95%', size: 38, delay: '1.2s', rot: 14  },
 ]
 
 export function Hero() {
@@ -45,14 +42,27 @@ export function Hero() {
         backgroundSize: '28px 28px',
       }} />
 
-      {/* Floating grocery items — the signature element */}
-      <div className="absolute inset-0 pointer-events-none hidden lg:block">
-        {FLOATING_ITEMS.map((it, i) => (
+      {/* Floating grocery items — kept to the outer margins, never over content */}
+      <div className="absolute inset-y-0 left-0 w-[10%] pointer-events-none hidden xl:block">
+        {FLOATING_ITEMS.filter(it => parseInt(it.left) < 50).map((it, i) => (
           <div
             key={i}
-            className="absolute opacity-90 animate-float"
+            className="absolute opacity-80 animate-float"
             style={{
               top: it.top, left: it.left, fontSize: it.size,
+              animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
+              filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
+            }}
+          >{it.emoji}</div>
+        ))}
+      </div>
+      <div className="absolute inset-y-0 right-0 w-[8%] pointer-events-none hidden xl:block">
+        {FLOATING_ITEMS.filter(it => parseInt(it.left) >= 50).map((it, i) => (
+          <div
+            key={i}
+            className="absolute opacity-80 animate-float"
+            style={{
+              top: it.top, right: `${100 - parseInt(it.left)}%`, fontSize: it.size,
               animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
               filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
             }}
@@ -69,9 +79,9 @@ export function Hero() {
           </div>
           <h1 className="text-[3.4rem] md:text-[4.6rem] font-black text-white leading-[0.95] tracking-[-0.03em] mb-5">
             Einkäufe<br/>
-            <span className="relative inline-block">
-              <span className="relative z-10">in 2 Stunden</span>
-              <span className="absolute left-0 right-0 bottom-2 h-4 bg-orange/90 -z-0 skew-x-[-8deg]" />
+            <span className="relative inline-block px-1">
+              <span className="absolute inset-x-0 bottom-1 h-5 bg-orange -z-10 -skew-x-6 rounded-sm" aria-hidden="true" />
+              in 2 Stunden
             </span><br/>
             geliefert
           </h1>
@@ -127,7 +137,7 @@ export function Hero() {
           <button
             onClick={() => go(addr)}
             disabled={addr.length < 4}
-            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:shadow-none"
           >
             Märkte in meiner Nähe anzeigen <ArrowRight size={18} />
           </button>

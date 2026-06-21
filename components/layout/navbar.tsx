@@ -31,7 +31,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="hidden md:block text-sm font-bold text-gray-600 border border-gray-200 rounded-xl px-4 py-2.5 hover:border-red hover:text-red transition-all">
+          <button className="hidden md:block text-sm font-bold text-gray-700 border border-gray-300 rounded-xl px-4 py-2.5 hover:border-red hover:text-red transition-all bg-white">
             Anmelden
           </button>
           <button
