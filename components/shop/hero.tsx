@@ -32,7 +32,7 @@ export function Hero() {
   }
 
   return (
-    <section className="relative pt-16 min-h-[640px] flex items-center overflow-hidden bg-[#0A0A0A]">
+    <section className="relative pt-16 overflow-hidden bg-[#0A0A0A]">
       {/* Deep red glow field, not a flat fill */}
       <div className="absolute inset-0 bg-gradient-to-br from-red via-[#C00A5C] to-[#6E0339]" />
       <div className="absolute -right-32 -top-32 w-[560px] h-[560px] rounded-full bg-orange/20 blur-3xl" />
@@ -70,14 +70,14 @@ export function Hero() {
         ))}
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-16 w-full grid md:grid-cols-2 gap-12 items-center relative z-10">
+      <div className="max-w-6xl mx-auto px-6 pt-14 pb-0 w-full grid md:grid-cols-2 gap-12 items-center relative z-10">
         {/* Left */}
         <div>
-          <div className="inline-flex items-center gap-2 bg-orange text-black text-xs font-black px-3.5 py-2 rounded-full mb-6 uppercase tracking-wide shadow-[0_4px_20px_rgba(247,168,0,0.4)]">
+          <div className="inline-flex items-center gap-2 bg-orange text-black text-xs font-black px-3.5 py-2 rounded-full mb-5 uppercase tracking-wide shadow-[0_4px_20px_rgba(247,168,0,0.4)]">
             <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
             Neu in Deutschland
           </div>
-          <h1 className="text-[3.4rem] md:text-[4.6rem] font-black text-white leading-[0.95] tracking-[-0.03em] mb-5">
+          <h1 className="text-[2.3rem] md:text-[3rem] font-black text-white leading-[1.02] tracking-[-0.02em] mb-4">
             Einkäufe<br/>
             <span className="relative inline-block px-1">
               <span className="absolute inset-0 bg-orange -z-10 rounded-md" aria-hidden="true" />
@@ -85,14 +85,14 @@ export function Hero() {
             </span><br/>
             geliefert
           </h1>
-          <p className="text-white/70 text-lg leading-relaxed mb-9 max-w-md font-medium">
+          <p className="text-white/70 text-base leading-relaxed mb-7 max-w-md font-medium">
             LIDL, ALDI, REWE und mehr — persönliche Shopper kaufen und liefern direkt zu Ihnen nach Hause.
           </p>
           <div className="flex gap-7">
             {[['2h','Lieferzeit'],['8+','Märkte'],['4.9★','Bewertung'],['1.2K','Bestellungen']].map(([n,l]) => (
               <div key={l} className="text-left">
-                <div className="text-[1.7rem] font-black text-white tracking-tight leading-none">{n}</div>
-                <div className="text-[0.7rem] text-white/55 mt-1.5 font-bold uppercase tracking-wide">{l}</div>
+                <div className="text-[1.5rem] font-black text-white tracking-tight leading-none">{n}</div>
+                <div className="text-[0.68rem] text-white/55 mt-1.5 font-bold uppercase tracking-wide">{l}</div>
               </div>
             ))}
           </div>
@@ -142,6 +142,17 @@ export function Hero() {
             Märkte in meiner Nähe anzeigen <ArrowRight size={18} />
           </button>
         </div>
+      </div>
+
+      {/* Bottom photo banner — full width. Drop your photo at public/hero-delivery.jpg */}
+      <div className="relative z-10 mt-12 w-full h-[260px] md:h-[340px] overflow-hidden bg-black/20">
+        <img
+          src="/hero-delivery.jpg"
+          alt="Echtzeiteinkauf Lieferung"
+          className="w-full h-full object-cover object-center"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent pointer-events-none" />
       </div>
 
       <style jsx>{`
