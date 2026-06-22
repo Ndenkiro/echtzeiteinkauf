@@ -29,7 +29,7 @@ export function RegistrierenForm() {
     const { error } = await getSupabase().auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${location.origin}/auth/callback?next=/konto`,
+        emailRedirectTo: `https://echtzeiteinkauf.com/auth/callback?next=/konto`,
         data: { full_name: name, role: 'customer' },
       },
     })
@@ -47,7 +47,7 @@ export function RegistrierenForm() {
     const { data, error } = await getSupabase().auth.signUp({
       email, password,
       options: {
-        emailRedirectTo: `${location.origin}/auth/callback?next=/shopper-portal/dokumente`,
+        emailRedirectTo: `https://echtzeiteinkauf.com/auth/callback?next=/shopper-portal/dokumente`,
         data: { full_name: name, role: 'shopper' },
       },
     })

@@ -27,7 +27,7 @@ export function AnmeldenForm() {
     setLoading(true)
     const { error } = await getSupabase().auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback?next=${next}` },
+      options: { emailRedirectTo: `https://echtzeiteinkauf.com/auth/callback?next=${next}` },
     })
     setLoading(false)
     if (error) { toast.error(error.message); return }
