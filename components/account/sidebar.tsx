@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { Package, User, MapPin, LogOut, Home } from 'lucide-react'
-import { supabaseBrowser } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 
 const NAV = [
   { href: '/konto',            label: 'Bestellungen', icon: Package },

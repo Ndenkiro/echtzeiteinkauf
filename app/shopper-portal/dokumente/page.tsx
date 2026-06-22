@@ -1,7 +1,7 @@
 'use client'
 // app/shopper-portal/dokumente/page.tsx
 import { useEffect, useState } from 'react'
-import { supabaseBrowser } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import { toast } from 'sonner'
 import { Upload, FileText, CheckCircle2, Clock, XCircle, Car, Bike, PersonStanding, Send } from 'lucide-react'
 

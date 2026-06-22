@@ -1,7 +1,7 @@
 'use client'
 // app/konto/adressen/page.tsx
 import { useEffect, useState } from 'react'
-import { supabaseBrowser } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import { toast } from 'sonner'
 import { MapPin, Plus, Trash2, Star, X } from 'lucide-react'
 

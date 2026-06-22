@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { Briefcase, Wallet, FileText, User, LogOut, Home, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { supabaseBrowser } from '@/lib/supabase'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 
 const NAV = [
   { href: '/shopper-portal',            label: 'Aufträge',  icon: Briefcase },
