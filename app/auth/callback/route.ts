@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   if (code) {
     const cookieStore = cookies()
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      'https://wpxpgszzzfhhsaunolyq.supabase.co',
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
@@ -25,8 +25,12 @@ export async function GET(request: Request) {
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      return NextResponse.redirect(`https://echtzeiteinkauf.com${next}`)
+    }
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  // If no code, redirect to a client-side handler page
+  return NextResponse.redirect(`https://echtzeiteinkauf.com/auth/confirm?next=${next}`)
 }
