@@ -16,24 +16,48 @@ function ConfirmInner() {
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
     )
 
-    // Check if session exists from hash fragment
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.push(next)
-        router.refresh()
-      } else {
-        // Listen for auth state change (handles hash fragment tokens)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_IN' && session) {
-            subscription.unsubscribe()
-            router.push(next)
-            router.refresh()
-          }
-        })
-        // Cleanup after 10s
-        setTimeout(() => subscription.unsubscribe(), 10000)
-      }
-    })
+    // Parse hash fragment manually
+    const hash = window.location.hash.substring(1)
+    const hashParams = new URLSearchParams(hash)
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+
+    if (accessToken && refreshToken) {
+      // Set session from hash tokens
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ error }) => {
+        if (!error) {
+          router.push(next)
+          router.refresh()
+        } else {
+          router.push('/anmelden?error=session_failed')
+        }
+      })
+    } else {
+      // No hash tokens — listen for auth state change
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+          subscription.unsubscribe()
+          router.push(next)
+          router.refresh()
+        }
+      })
+
+      // Also check existing session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          router.push(next)
+          router.refresh()
+        }
+      })
+
+      setTimeout(() => {
+        subscription.unsubscribe()
+        router.push('/anmelden?error=timeout')
+      }, 8000)
+    }
   }, [next, router])
 
   return (
