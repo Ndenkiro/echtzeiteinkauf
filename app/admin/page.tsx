@@ -1,6 +1,8 @@
 // app/admin/page.tsx
 import { supabaseServer } from '@/lib/supabase'
-import { Users, Bike, ShoppingBag, Clock, TrendingUp, Euro } from 'lucide-react'
+import { Users, Bike, ShoppingBag, Clock } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 
 export default async function AdminPage() {
   const supabase = supabaseServer()
@@ -28,18 +30,18 @@ export default async function AdminPage() {
   ])
 
   const stats = [
-    { label: 'Kunden',              value: totalKunden || 0,   icon: Users,       color: 'bg-blue-50 text-blue-600' },
-    { label: 'Shopper',             value: totalShoppers || 0, icon: Bike,        color: 'bg-orange-50 text-orange-600' },
-    { label: 'Bestellungen',        value: totalOrders || 0,   icon: ShoppingBag, color: 'bg-green-50 text-green-600' },
-    { label: 'Offene Bewerbungen',  value: pendingApps || 0,   icon: Clock,       color: 'bg-red/10 text-red' },
+    { label: 'Kunden',             value: totalKunden || 0,   icon: Users,       color: 'bg-blue-50 text-blue-600' },
+    { label: 'Shopper',            value: totalShoppers || 0, icon: Bike,        color: 'bg-orange-50 text-orange-600' },
+    { label: 'Bestellungen',       value: totalOrders || 0,   icon: ShoppingBag, color: 'bg-green-50 text-green-600' },
+    { label: 'Offene Bewerbungen', value: pendingApps || 0,   icon: Clock,       color: 'bg-red/10 text-red' },
   ]
 
   const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-    draft:             { label: 'Entwurf',       color: 'bg-gray-100 text-gray-500' },
-    documents_pending: { label: 'Dok. fehlen',   color: 'bg-yellow-50 text-yellow-700' },
-    under_review:      { label: 'In Prüfung',    color: 'bg-blue-50 text-blue-700' },
-    approved:          { label: 'Freigegeben',   color: 'bg-green-50 text-green-700' },
-    rejected:          { label: 'Abgelehnt',     color: 'bg-red/10 text-red' },
+    draft:             { label: 'Entwurf',     color: 'bg-gray-100 text-gray-500' },
+    documents_pending: { label: 'Dok. fehlen', color: 'bg-yellow-50 text-yellow-700' },
+    under_review:      { label: 'In Prüfung',  color: 'bg-blue-50 text-blue-700' },
+    approved:          { label: 'Freigegeben', color: 'bg-green-50 text-green-700' },
+    rejected:          { label: 'Abgelehnt',   color: 'bg-red/10 text-red' },
   }
 
   return (
@@ -49,7 +51,6 @@ export default async function AdminPage() {
         <p className="text-sm text-gray-500 mt-1">Übersicht über Echtzeiteinkauf</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         {stats.map(s => {
           const Icon = s.icon
@@ -66,7 +67,6 @@ export default async function AdminPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Recent applications */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-black text-gray-900">Letzte Bewerbungen</h2>
@@ -78,11 +78,12 @@ export default async function AdminPage() {
             <div className="flex flex-col gap-3">
               {recentApps.map((app: any) => {
                 const cfg = STATUS_LABEL[app.status] || STATUS_LABEL.draft
+                const user = Array.isArray(app.user) ? app.user[0] : app.user
                 return (
                   <div key={app.id} className="flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-sm text-gray-900">{app.user.full_name || 'Unbekannt'}</div>
-                      <div className="text-xs text-gray-400">{app.user.email}</div>
+                      <div className="font-bold text-sm text-gray-900">{user?.full_name || 'Unbekannt'}</div>
+                      <div className="text-xs text-gray-400">{user?.email || '—'}</div>
                     </div>
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>{cfg.label}</span>
                   </div>
@@ -92,7 +93,6 @@ export default async function AdminPage() {
           )}
         </div>
 
-        {/* Recent orders */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-black text-gray-900">Letzte Bestellungen</h2>
@@ -105,7 +105,7 @@ export default async function AdminPage() {
               {recentOrders.map((order: any) => (
                 <div key={order.id} className="flex items-center justify-between">
                   <div>
-                    <div className="font-bold text-sm text-gray-900">{order.stores?.name}</div>
+                    <div className="font-bold text-sm text-gray-900">{order.stores?.name || '—'}</div>
                     <div className="text-xs text-gray-400">#{order.id.slice(0,8).toUpperCase()}</div>
                   </div>
                   <div className="text-right">
