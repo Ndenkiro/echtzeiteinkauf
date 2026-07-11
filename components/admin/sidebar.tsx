@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Users, Bike, ShoppingBag, LogOut, Home } from 'lucide-react'
+import { LayoutDashboard, Users, Bike, ShoppingBag, LogOut, Home, BarChart2 } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 
 const NAV = [
   { href: '/admin',             label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/admin/statistiken', label: 'Statistiken', icon: BarChart2 },
   { href: '/admin/shoppers',    label: 'Shopper',       icon: Bike },
   { href: '/admin/kunden',      label: 'Kunden',        icon: Users },
   { href: '/admin/bestellungen',label: 'Bestellungen',  icon: ShoppingBag },
