@@ -29,7 +29,10 @@ export default function AdminShoppersPage() {
   const load = async () => {
     const { data } = await supabase
       .from('shopper_applications')
-      .select('*, users(full_name, email, created_at)')
+      .select(`
+  *,
+  user:user_id (full_name, email)
+`)
       .order('created_at', { ascending: false })
     setApps(data || [])
     setLoading(false)
@@ -164,8 +167,8 @@ export default function AdminShoppersPage() {
                 <User size={22} className="text-red" />
               </div>
               <div>
-                <div className="font-black text-gray-900">{selected.users?.full_name}</div>
-                <div className="text-sm text-gray-400">{selected.users?.email}</div>
+                <div className="font-black text-gray-900">{selected.user?.full_name}</div>
+                <div className="text-sm text-gray-400">{selected.user?.email}</div>
               </div>
               <span className={`ml-auto text-xs font-bold px-2.5 py-1 rounded-full ${STATUS_CFG[selected.status]?.color}`}>
                 {STATUS_CFG[selected.status]?.label}
