@@ -127,8 +127,8 @@ export default function AdminShoppersPage() {
                 return (
                   <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-4">
-                      <div className="font-bold text-gray-900">{app.users?.full_name || '—'}</div>
-                      <div className="text-xs text-gray-400">{app.users?.email}</div>
+                      <div className="font-bold text-gray-900">{app.user?.full_name || '—'}</div>
+                      <div className="text-xs text-gray-400">{app.user?.email}</div>
                     </td>
                     <td className="px-5 py-4 text-gray-600 capitalize">{app.vehicle_type || '—'}</td>
                     <td className="px-5 py-4 text-gray-400 text-xs">

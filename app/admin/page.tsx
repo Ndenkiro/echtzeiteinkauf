@@ -18,7 +18,7 @@ export default async function AdminPage() {
     supabase.from('orders').select('*', { count: 'exact', head: true }),
     supabase.from('shopper_applications').select('*', { count: 'exact', head: true }).eq('status', 'under_review'),
     supabase.from('shopper_applications')
-      .select('id, status, created_at, users(full_name, email)')
+      .select('id, status, created_at, user:user_id(full_name, email)')
       .order('created_at', { ascending: false })
       .limit(5),
     supabase.from('orders')
@@ -81,8 +81,8 @@ export default async function AdminPage() {
                 return (
                   <div key={app.id} className="flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-sm text-gray-900">{app.users?.full_name || 'Unbekannt'}</div>
-                      <div className="text-xs text-gray-400">{app.users?.email}</div>
+                      <div className="font-bold text-sm text-gray-900">{app.user.full_name || 'Unbekannt'}</div>
+                      <div className="text-xs text-gray-400">{app.user.email}</div>
                     </div>
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>{cfg.label}</span>
                   </div>
