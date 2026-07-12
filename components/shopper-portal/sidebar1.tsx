@@ -3,36 +3,32 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Briefcase, Wallet, FileText, User, LogOut, Home, AlertCircle, CheckCircle2, Star } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
+import { Briefcase, Wallet, FileText, User, LogOut, Home, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 
 const NAV = [
-  { href: '/shopper-portal',             label: 'Aufträge',    icon: Briefcase },
-  { href: '/shopper-portal/verdienst',   label: 'Verdienst',   icon: Wallet },
-  { href: '/shopper-portal/bewertungen', label: 'Bewertungen', icon: Star },
-  { href: '/shopper-portal/dokumente',   label: 'Dokumente',   icon: FileText },
-  { href: '/shopper-portal/profil',      label: 'Profil',      icon: User },
+  { href: '/shopper-portal',            label: 'Aufträge',  icon: Briefcase },
+  { href: '/shopper-portal/verdienst',  label: 'Verdienst',  icon: Wallet },
+  { href: '/shopper-portal/dokumente',  label: 'Dokumente',  icon: FileText },
+  { href: '/shopper-portal/profil',     label: 'Profil',     icon: User },
 ]
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   draft:              { label: 'Nicht eingereicht', color: 'text-gray-500',     bg: 'bg-gray-100',     icon: AlertCircle },
-  documents_pending:  { label: 'Dokumente fehlen',  color: 'text-orange-dark', bg: 'bg-orange-light', icon: AlertCircle },
-  under_review:       { label: 'Wird geprüft',      color: 'text-blue-600',    bg: 'bg-blue-50',      icon: AlertCircle },
-  approved:           { label: 'Verifiziert',       color: 'text-green-700',   bg: 'bg-green-50',     icon: CheckCircle2 },
-  rejected:           { label: 'Abgelehnt',         color: 'text-red',        bg: 'bg-red-light',    icon: AlertCircle },
+  documents_pending:  { label: 'Dokumente fehlen',   color: 'text-orange-dark', bg: 'bg-orange-light', icon: AlertCircle },
+  under_review:       { label: 'Wird geprüft',       color: 'text-blue-600',    bg: 'bg-blue-50',      icon: AlertCircle },
+  approved:           { label: 'Verifiziert',        color: 'text-green-700',   bg: 'bg-green-50',     icon: CheckCircle2 },
+  rejected:           { label: 'Abgelehnt',          color: 'text-red',        bg: 'bg-red-light',    icon: AlertCircle },
 }
 
 export function ShopperSidebar({ name, email, appStatus }: { name: string; email: string; appStatus: string }) {
   const pathname = usePathname()
   const router = useRouter()
+  const supabase = supabaseBrowser()
   const cfg = STATUS_CFG[appStatus] || STATUS_CFG.draft
   const StatusIcon = cfg.icon
 
   const logout = async () => {
-    const supabase = createBrowserClient(
-      'https://wpxpgszzzfhhsaunolyq.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
-    )
     await supabase.auth.signOut()
     router.push('/')
     router.refresh()
