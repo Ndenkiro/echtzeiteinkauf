@@ -1,76 +1,74 @@
-// lib/cart-store.ts — global cart state with Zustand
+// lib/cart-store.ts
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Product, CartItem } from './supabase'
+import type { Product, CartItem } from './supabase-browser'
 
-type CartStore = {
-  items:      CartItem[]
-  storeId:    string | null
-  storeName:  string | null
-  address:    string
-  tipPct:     number
-
-  addItem:    (product: Product) => void
+type CartState = {
+  items: CartItem[]
+  address: string | null
+  storeId: string | null
+  storeName: string | null
+  deliveryFee: number
+  addItem: (product: Product, storeId: string, storeName: string, deliveryFee: number) => void
   removeItem: (productId: string) => void
-  setQty:     (productId: string, qty: number) => void
-  clearCart:  () => void
-  setStore:   (id: string, name: string) => void
-  setAddress: (addr: string) => void
-  setTip:     (pct: number) => void
-
-  // Derived
-  totalItems:    () => number
-  subtotal:      () => number
-  deliveryFee:   () => number
-  serviceFee:    () => number
-  tipAmount:     () => number
-  grandTotal:    (deliveryFee?: number) => number
+  updateQuantity: (productId: string, quantity: number) => void
+  clearCart: () => void
+  setAddress: (address: string) => void
+  totalItems: () => number
+  totalPrice: () => number
 }
 
-export const useCart = create<CartStore>()(
+export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
-      items:     [],
-      storeId:   null,
+      items: [],
+      address: null,
+      storeId: null,
       storeName: null,
-      address:   '',
-      tipPct:    5,
+      deliveryFee: 1.99,
 
-      addItem: (product) => {
-        const { items } = get()
-        const existing = items.find(i => i.product.id === product.id)
-        if (existing) {
-          set({ items: items.map(i => i.product.id === product.id
-            ? { ...i, quantity: i.quantity + 1 } : i) })
-        } else {
-          set({ items: [...items, { product, quantity: 1 }] })
+      addItem: (product, storeId, storeName, deliveryFee) => {
+        const state = get()
+        if (state.storeId && state.storeId !== storeId) {
+          if (!confirm(`Ihr Warenkorb enthält Artikel von ${state.storeName}. Warenkorb leeren und bei ${storeName} einkaufen?`)) {
+            return
+          }
+          set({ items: [], storeId, storeName, deliveryFee })
         }
+        set(s => {
+          const existing = s.items.find(i => i.product.id === product.id)
+          if (existing) {
+            return {
+              items: s.items.map(i =>
+                i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+              ),
+              storeId, storeName, deliveryFee,
+            }
+          }
+          return {
+            items: [...s.items, { product, quantity: 1 }],
+            storeId, storeName, deliveryFee,
+          }
+        })
       },
 
-      removeItem: (productId) =>
-        set({ items: get().items.filter(i => i.product.id !== productId) }),
+      removeItem: (productId) => set(s => {
+        const items = s.items.filter(i => i.product.id !== productId)
+        return items.length === 0
+          ? { items, storeId: null, storeName: null }
+          : { items }
+      }),
 
-      setQty: (productId, qty) => {
-        if (qty <= 0) { get().removeItem(productId); return }
-        set({ items: get().items.map(i =>
-          i.product.id === productId ? { ...i, quantity: qty } : i) })
-      },
+      updateQuantity: (productId, quantity) => set(s => ({
+        items: quantity <= 0
+          ? s.items.filter(i => i.product.id !== productId)
+          : s.items.map(i => i.product.id === productId ? { ...i, quantity } : i),
+      })),
 
-      clearCart:  () => set({ items: [], storeId: null, storeName: null }),
-      setStore:   (id, name) => set({ storeId: id, storeName: name }),
-      setAddress: (addr) => set({ address: addr }),
-      setTip:     (pct) => set({ tipPct: pct }),
-
-      totalItems:  () => get().items.reduce((a, i) => a + i.quantity, 0),
-      subtotal:    () => get().items.reduce((a, i) => a + i.product.price * i.quantity, 0),
-      deliveryFee: () => 1.99,
-      serviceFee:  () => get().subtotal() * 0.05,
-      tipAmount:   () => get().subtotal() * (get().tipPct / 100),
-      grandTotal:  (fee) => {
-        const s = get()
-        const d = fee ?? s.deliveryFee()
-        return s.subtotal() + d + s.serviceFee() + s.tipAmount()
-      },
+      clearCart: () => set({ items: [], storeId: null, storeName: null }),
+      setAddress: (address) => set({ address }),
+      totalItems: () => get().items.reduce((a, i) => a + i.quantity, 0),
+      totalPrice: () => get().items.reduce((a, i) => a + Number(i.product.price) * i.quantity, 0),
     }),
     { name: 'echtzeiteinkauf-cart' }
   )
