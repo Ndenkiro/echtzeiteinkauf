@@ -43,7 +43,7 @@ type FoundStore = {
   openNow?: boolean; partner: { color: string; slug: string } | null
 }
 
-export default function MaerktePage() {
+function MaerkteContent() {
   const router = useRouter()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
@@ -370,5 +370,19 @@ export default function MaerktePage() {
       </main>
       <Footer />
     </>
+  )
+}
+
+import { Suspense } from 'react'
+
+export default function MaerktePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-red border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <MaerkteContent />
+    </Suspense>
   )
 }
