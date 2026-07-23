@@ -1,6 +1,7 @@
 'use client'
 // app/maerkte/page.tsx — Google Maps: all supermarkets in Germany via Places API
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { Navbar } from '@/components/layout/navbar'
@@ -52,7 +53,8 @@ export default function MaerktePage() {
 
   const [ready, setReady] = useState(false)
   const [searching, setSearching] = useState(false)
-  const [query, setQuery] = useState('')
+  const searchParams = useSearchParams()
+  const [query, setQuery] = useState(searchParams.get('q') || '')
   const [stores, setStores] = useState<FoundStore[]>([])
   const [selected, setSelected] = useState<FoundStore | null>(null)
   const [shoppers, setShoppers] = useState<any[]>([])
@@ -141,7 +143,28 @@ export default function MaerktePage() {
     })
     mapInstance.current = map
     placesService.current = new g.maps.places.PlacesService(map)
-    searchNearby({ lat: 49.4521, lng: 11.0767 })
+    const initialQ = searchParams.get('q')
+    if (initialQ) {
+      setQuery(initialQ)
+      // Geocode the address from URL param
+      const g = (window as any).google
+      new g.maps.Geocoder().geocode(
+        { address: initialQ + ', Deutschland', region: 'DE' },
+        (results: any[], status: string) => {
+          if (status === 'OK' && results?.[0]) {
+            const loc = results[0].geometry.location
+            const center = { lat: loc.lat(), lng: loc.lng() }
+            map.setCenter(center)
+            map.setZoom(14)
+            searchNearby(center)
+          } else {
+            searchNearby({ lat: 49.4521, lng: 11.0767 })
+          }
+        }
+      )
+    } else {
+      searchNearby({ lat: 49.4521, lng: 11.0767 })
+    }
   }, [ready, searchNearby])
 
   const searchAddress = () => {

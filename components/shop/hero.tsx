@@ -27,13 +27,12 @@ export function Hero() {
   const go = (address: string) => {
     if (!address.trim()) { toast.error('Bitte Adresse eingeben'); return }
     setAddress(address)
-    document.getElementById('stores')?.scrollIntoView({ behavior: 'smooth' })
-    toast.success('Märkte in Ihrer Nähe werden angezeigt')
+    // Redirect to map with address pre-filled
+    router.push(`/maerkte?q=${encodeURIComponent(address)}`)
   }
 
   return (
     <section className="relative pt-16 overflow-hidden bg-[#0A0A0A]">
-      {/* Deep red glow field, not a flat fill */}
       <div className="absolute inset-0 bg-gradient-to-br from-red via-[#C00A5C] to-[#6E0339]" />
       <div className="absolute -right-32 -top-32 w-[560px] h-[560px] rounded-full bg-orange/20 blur-3xl" />
       <div className="absolute -left-24 bottom-0 w-[380px] h-[380px] rounded-full bg-black/30 blur-3xl" />
@@ -42,31 +41,22 @@ export function Hero() {
         backgroundSize: '28px 28px',
       }} />
 
-      {/* Floating grocery items — kept to the outer margins, never over content */}
       <div className="absolute inset-y-0 left-0 w-[10%] pointer-events-none hidden xl:block">
         {FLOATING_ITEMS.filter(it => parseInt(it.left) < 50).map((it, i) => (
-          <div
-            key={i}
-            className="absolute opacity-80 animate-float"
-            style={{
-              top: it.top, left: it.left, fontSize: it.size,
-              animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
-              filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
-            }}
-          >{it.emoji}</div>
+          <div key={i} className="absolute opacity-80 animate-float" style={{
+            top: it.top, left: it.left, fontSize: it.size,
+            animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
+            filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
+          }}>{it.emoji}</div>
         ))}
       </div>
       <div className="absolute inset-y-0 right-0 w-[8%] pointer-events-none hidden xl:block">
         {FLOATING_ITEMS.filter(it => parseInt(it.left) >= 50).map((it, i) => (
-          <div
-            key={i}
-            className="absolute opacity-80 animate-float"
-            style={{
-              top: it.top, right: `${100 - parseInt(it.left)}%`, fontSize: it.size,
-              animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
-              filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
-            }}
-          >{it.emoji}</div>
+          <div key={i} className="absolute opacity-80 animate-float" style={{
+            top: it.top, right: `${100 - parseInt(it.left)}%`, fontSize: it.size,
+            animationDelay: it.delay, transform: `rotate(${it.rot}deg)`,
+            filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.35))',
+          }}>{it.emoji}</div>
         ))}
       </div>
 
@@ -119,7 +109,7 @@ export function Hero() {
             {SUGGESTIONS.map(s => (
               <button
                 key={s.label}
-                onClick={() => { setAddr(`${s.label}, ${s.sub}`); go(`${s.label}, ${s.sub}`) }}
+                onClick={() => go(`${s.label}, ${s.sub}`)}
                 className="flex items-center gap-3 px-3.5 py-3 border border-gray-100 rounded-2xl text-left hover:border-red hover:bg-red/[0.04] transition-all group"
               >
                 <div className="w-9 h-9 rounded-xl bg-red/10 flex items-center justify-center flex-shrink-0 group-hover:bg-red group-hover:scale-110 transition-all">
@@ -144,7 +134,6 @@ export function Hero() {
         </div>
       </div>
 
-      {/* Bottom photo banner — full width. Drop your photo at public/hero-delivery.jpg */}
       <div className="relative z-10 mt-12 w-full h-[260px] md:h-[340px] overflow-hidden bg-black/20">
         <img
           src="/hero-delivery.jpg"
