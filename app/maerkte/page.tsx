@@ -1,19 +1,16 @@
 'use client'
-// app/maerkte/page.tsx — Google Maps: all supermarkets in Germany via Places API
+// app/maerkte/page.tsx — Google Maps with opening hours, distance, geolocation
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { Navbar } from '@/components/layout/navbar'
 import { Footer } from '@/components/layout/footer'
-import { Search, ArrowRight, Clock, Loader2, Crosshair } from 'lucide-react'
+import { Search, ArrowRight, Clock, Loader2, Crosshair, MapPin, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
+import { Suspense } from 'react'
 
-// ═══════════════════════════════════════════════════════════
-// ⬇️⬇️⬇️ DEINE GOOGLE MAPS API KEY HIER EINFÜGEN ⬇️⬇️⬇️
-const GOOGLE_MAPS_API_KEY='AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU2I'
-// ⬆️⬆️⬆️ DEINE GOOGLE MAPS API KEY HIER EINFÜGEN ⬆️⬆️⬆️
-// ═══════════════════════════════════════════════════════════
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU2I'
 
 const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
@@ -37,10 +34,21 @@ function matchPartner(name: string) {
   return null
 }
 
+// Haversine distance in km
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
 type FoundStore = {
   placeId: string; name: string; address: string
   lat: number; lng: number; rating?: number
-  openNow?: boolean; partner: { color: string; slug: string } | null
+  openNow?: boolean; weekdayText?: string[]
+  partner: { color: string; slug: string } | null
+  distance?: number
 }
 
 function MaerkteContent() {
@@ -50,14 +58,17 @@ function MaerkteContent() {
   const markersRef = useRef<any[]>([])
   const shopperMarkersRef = useRef<any[]>([])
   const placesService = useRef<any>(null)
+  const userCenter = useRef<{ lat: number; lng: number } | null>(null)
 
   const [ready, setReady] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [locating, setLocating] = useState(false)
   const searchParams = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [stores, setStores] = useState<FoundStore[]>([])
   const [selected, setSelected] = useState<FoundStore | null>(null)
   const [shoppers, setShoppers] = useState<any[]>([])
+  const [expandedHours, setExpandedHours] = useState(false)
 
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
 
@@ -67,7 +78,7 @@ function MaerkteContent() {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&language=de&region=DE`
     script.async = true
     script.onload = () => setReady(true)
-    script.onerror = () => toast.error('Google Maps konnte nicht geladen werden — API Key prüfen')
+    script.onerror = () => toast.error('Google Maps konnte nicht geladen werden')
     document.head.appendChild(script)
   }, [])
 
@@ -93,15 +104,34 @@ function MaerkteContent() {
       })
       marker.addListener('click', () => {
         setSelected(store)
+        setExpandedHours(false)
         mapInstance.current.panTo({ lat: store.lat, lng: store.lng })
       })
       markersRef.current.push(marker)
     })
   }
 
+  // Fetch opening hours for selected store
+  const fetchHours = (placeId: string) => {
+    if (!placesService.current) return
+    placesService.current.getDetails(
+      { placeId, fields: ['opening_hours'] },
+      (result: any, status: string) => {
+        if (status === (window as any).google.maps.places.PlacesServiceStatus.OK) {
+          setSelected(prev => prev ? {
+            ...prev,
+            weekdayText: result.opening_hours?.weekday_text || [],
+            openNow: result.opening_hours?.isOpen?.() ?? prev.openNow,
+          } : prev)
+        }
+      }
+    )
+  }
+
   const searchNearby = useCallback((center: { lat: number; lng: number }) => {
     if (!placesService.current) return
     const g = (window as any).google
+    userCenter.current = center
     setSearching(true)
     placesService.current.nearbySearch(
       { location: center, radius: 3000, type: 'supermarket' },
@@ -120,8 +150,13 @@ function MaerkteContent() {
           rating: r.rating,
           openNow: r.opening_hours?.isOpen?.() ?? r.opening_hours?.open_now,
           partner: matchPartner(r.name),
+          distance: distanceKm(center.lat, center.lng, r.geometry.location.lat(), r.geometry.location.lng()),
         }))
-        found.sort((a, b) => (b.partner ? 1 : 0) - (a.partner ? 1 : 0))
+        // Partners first, then by distance
+        found.sort((a, b) => {
+          if (!!a.partner !== !!b.partner) return b.partner ? 1 : -1
+          return (a.distance || 0) - (b.distance || 0)
+        })
         setStores(found)
         renderMarkers(found)
       }
@@ -143,11 +178,18 @@ function MaerkteContent() {
     })
     mapInstance.current = map
     placesService.current = new g.maps.places.PlacesService(map)
+
+    const initialLat = searchParams.get('lat')
+    const initialLng = searchParams.get('lng')
     const initialQ = searchParams.get('q')
-    if (initialQ) {
+    if (initialLat && initialLng) {
+      const center = { lat: parseFloat(initialLat), lng: parseFloat(initialLng) }
+      map.setCenter(center)
+      map.setZoom(14)
+      setQuery('Mein Standort')
+      searchNearby(center)
+    } else if (initialQ) {
       setQuery(initialQ)
-      // Geocode the address from URL param
-      const g = (window as any).google
       new g.maps.Geocoder().geocode(
         { address: initialQ + ', Deutschland', region: 'DE' },
         (results: any[], status: string) => {
@@ -189,18 +231,37 @@ function MaerkteContent() {
     )
   }
 
+  // Geolocation
   const useMyLocation = () => {
     if (!navigator.geolocation) { toast.error('Standort nicht verfügbar'); return }
-    setSearching(true)
+    setLocating(true)
     navigator.geolocation.getCurrentPosition(
       pos => {
         const center = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        mapInstance.current.setCenter(center)
-        mapInstance.current.setZoom(14)
+        mapInstance.current?.setCenter(center)
+        mapInstance.current?.setZoom(14)
         setSelected(null)
+        setQuery('Mein Standort')
         searchNearby(center)
+        setLocating(false)
+        // Add user location marker
+        const g = (window as any).google
+        new g.maps.Marker({
+          position: center,
+          map: mapInstance.current,
+          icon: {
+            path: g.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: '#E30B6D',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 3,
+          },
+          title: 'Ihr Standort',
+          zIndex: 500,
+        })
       },
-      () => { setSearching(false); toast.error('Standortzugriff verweigert') }
+      () => { setLocating(false); toast.error('Standortzugriff verweigert') }
     )
   }
 
@@ -248,12 +309,22 @@ function MaerkteContent() {
     })
   }, [shoppers, ready])
 
+  // Fetch hours when store is selected
+  useEffect(() => {
+    if (selected && !selected.weekdayText) {
+      fetchHours(selected.placeId)
+    }
+  }, [selected?.placeId])
+
   const partnerCount = stores.filter(s => s.partner).length
+  const TODAY = new Date().getDay() // 0=Sun, 1=Mon...
+  const DE_DAY = TODAY === 0 ? 6 : TODAY - 1 // German weekday_text starts Mon=0
 
   return (
     <>
       <Navbar />
       <main className="pt-16 min-h-screen bg-gray-50">
+        {/* Search header */}
         <div className="bg-white border-b border-gray-100 px-6 py-5">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-xl font-black text-gray-900 mb-1">Supermärkte in ganz Deutschland</h1>
@@ -261,6 +332,18 @@ function MaerkteContent() {
               {stores.length} Märkte gefunden · <span className="text-red font-bold">{partnerCount} Partner</span> · <span className="text-green-600 font-bold">{shoppers.length} Shopper online</span>
             </p>
             <div className="flex gap-2">
+              {/* Geolocation button */}
+              <button
+                onClick={useMyLocation}
+                disabled={locating || !ready}
+                title="Meinen Standort verwenden"
+                className="flex items-center gap-2 px-4 py-3 border-2 border-red/30 bg-red/5 text-red rounded-2xl text-sm font-bold hover:bg-red hover:text-white transition-all disabled:opacity-40 flex-shrink-0"
+              >
+                {locating ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} />}
+                <span className="hidden sm:inline">Mein Standort</span>
+              </button>
+
+              {/* Address search */}
               <div className="flex-1 flex items-center gap-2 border-2 border-gray-100 rounded-2xl px-4 py-3 focus-within:border-red transition-colors bg-white">
                 <Search size={17} className="text-gray-400 flex-shrink-0" />
                 <input
@@ -271,17 +354,15 @@ function MaerkteContent() {
                   className="flex-1 outline-none text-sm bg-transparent"
                 />
               </div>
-              <button onClick={searchAddress} disabled={searching} className="btn-red px-5 text-sm">
+              <button onClick={searchAddress} disabled={searching} className="btn-red px-5 text-sm flex-shrink-0">
                 {searching ? <Loader2 size={16} className="animate-spin" /> : 'Suchen'}
-              </button>
-              <button onClick={useMyLocation} title="Meinen Standort verwenden" className="w-12 border-2 border-gray-100 rounded-2xl flex items-center justify-center hover:border-red hover:text-red transition-all">
-                <Crosshair size={17} />
               </button>
             </div>
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-6 py-6 grid lg:grid-cols-[1fr_360px] gap-6">
+          {/* Map */}
           <div className="relative">
             <div ref={mapRef} className="w-full h-[560px] rounded-3xl overflow-hidden border border-gray-200 shadow-sm" />
             {!ready && (
@@ -296,6 +377,7 @@ function MaerkteContent() {
             </div>
           </div>
 
+          {/* Store list / detail */}
           <div className="flex flex-col gap-3 max-h-[560px] overflow-y-auto pr-1">
             {selected ? (
               <div className={`bg-white rounded-2xl border-2 p-5 ${selected.partner ? 'border-red' : 'border-gray-200'}`}>
@@ -310,19 +392,53 @@ function MaerkteContent() {
                     <div className="text-xs text-gray-400 truncate">{selected.address}</div>
                   </div>
                 </div>
+
+                {/* Status + distance + rating */}
                 <div className="flex gap-2 mb-4 flex-wrap">
                   {selected.openNow !== undefined && (
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${selected.openNow ? 'bg-green-50 text-green-700' : 'bg-red/10 text-red'}`}>
                       {selected.openNow ? '🟢 Geöffnet' : '🔴 Geschlossen'}
                     </span>
                   )}
+                  {selected.distance !== undefined && (
+                    <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">
+                      📍 {selected.distance < 1 ? `${Math.round(selected.distance * 1000)} m` : `${selected.distance.toFixed(1)} km`}
+                    </span>
+                  )}
                   {selected.rating && (
                     <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">⭐ {selected.rating}</span>
                   )}
                 </div>
+
+                {/* Opening hours */}
+                {selected.weekdayText && selected.weekdayText.length > 0 && (
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setExpandedHours(h => !h)}
+                      className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors mb-2"
+                    >
+                      <Clock size={13} /> Öffnungszeiten {expandedHours ? '▲' : '▼'}
+                    </button>
+                    {expandedHours ? (
+                      <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1">
+                        {selected.weekdayText.map((line, i) => (
+                          <div key={i} className={`text-xs flex justify-between gap-2 ${i === DE_DAY ? 'font-black text-gray-900' : 'text-gray-500'}`}>
+                            <span>{line.split(': ')[0]}</span>
+                            <span>{line.split(': ')[1]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2">
+                        {selected.weekdayText[DE_DAY] || selected.weekdayText[0]}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {selected.partner ? (
                   <>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-5">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
                       <Clock size={13} /> Lieferung in ca. 2 Stunden
                     </div>
                     <button onClick={() => router.push(`/markt/${selected.partner!.slug}`)} className="btn-red w-full py-3.5">
@@ -342,11 +458,12 @@ function MaerkteContent() {
                   key={store.placeId}
                   onClick={() => {
                     setSelected(store)
+                    setExpandedHours(false)
                     mapInstance.current?.panTo({ lat: store.lat, lng: store.lng })
                     mapInstance.current?.setZoom(15)
                   }}
                   className={`bg-white rounded-2xl border p-4 flex items-center gap-3 transition-all text-left ${
-                    store.partner ? 'border-gray-100 hover:border-red' : 'border-gray-50 opacity-60 hover:opacity-100'
+                    store.partner ? 'border-gray-100 hover:border-red' : 'border-gray-50 opacity-70 hover:opacity-100'
                   }`}
                 >
                   <div
@@ -355,7 +472,18 @@ function MaerkteContent() {
                   >{store.name.slice(0,3).toUpperCase()}</div>
                   <div className="flex-1 min-w-0">
                     <div className="font-black text-sm text-gray-900 truncate">{store.name}</div>
-                    <div className="text-xs text-gray-400 truncate">{store.address}</div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {store.openNow !== undefined && (
+                        <span className={`text-[10px] font-bold ${store.openNow ? 'text-green-600' : 'text-red'}`}>
+                          {store.openNow ? '● Geöffnet' : '● Geschlossen'}
+                        </span>
+                      )}
+                      {store.distance !== undefined && (
+                        <span className="text-[10px] text-gray-400">
+                          {store.distance < 1 ? `${Math.round(store.distance * 1000)} m` : `${store.distance.toFixed(1)} km`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {store.partner ? (
                     <span className="text-[10px] font-black text-red bg-red/10 px-2 py-1 rounded-full flex-shrink-0">PARTNER</span>
@@ -372,8 +500,6 @@ function MaerkteContent() {
     </>
   )
 }
-
-import { Suspense } from 'react'
 
 export default function MaerktePage() {
   return (

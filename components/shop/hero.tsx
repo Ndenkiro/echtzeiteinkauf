@@ -2,7 +2,7 @@
 // components/shop/hero.tsx
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, ArrowRight } from 'lucide-react'
+import { MapPin, ArrowRight, Navigation, Loader2 } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
 import { toast } from 'sonner'
 
@@ -21,14 +21,31 @@ const FLOATING_ITEMS = [
 
 export function Hero() {
   const [addr, setAddr] = useState('')
+  const [locating, setLocating] = useState(false)
   const setAddress = useCart(s => s.setAddress)
   const router = useRouter()
 
   const go = (address: string) => {
     if (!address.trim()) { toast.error('Bitte Adresse eingeben'); return }
     setAddress(address)
-    // Redirect to map with address pre-filled
     router.push(`/maerkte?q=${encodeURIComponent(address)}`)
+  }
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { toast.error('Standort nicht verfügbar'); return }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setLocating(false)
+        setAddress('Mein Standort')
+        // Pass coordinates directly
+        router.push(`/maerkte?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`)
+      },
+      () => {
+        setLocating(false)
+        toast.error('Standortzugriff verweigert. Bitte in den Browser-Einstellungen erlauben.')
+      }
+    )
   }
 
   return (
@@ -93,7 +110,23 @@ export function Hero() {
           <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full bg-orange flex items-center justify-center text-xl shadow-lg rotate-12">🛒</div>
           <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4">📍 Geben Sie Ihre Adresse ein</p>
 
-          <div className="flex items-center gap-2 border-2 border-gray-100 bg-gray-50 rounded-2xl px-4 py-3.5 mb-5 focus-within:border-red focus-within:bg-white transition-all">
+          {/* Standort button */}
+          <button
+            onClick={useMyLocation}
+            disabled={locating}
+            className="w-full flex items-center gap-3 border-2 border-red/20 bg-red/5 text-red rounded-2xl px-4 py-3 mb-4 font-bold text-sm hover:bg-red hover:text-white hover:border-red transition-all disabled:opacity-60"
+          >
+            {locating ? <Loader2 size={18} className="animate-spin flex-shrink-0" /> : <Navigation size={18} className="flex-shrink-0" />}
+            <span>{locating ? 'Standort wird ermittelt...' : 'Meinen Standort verwenden'}</span>
+          </button>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-xs text-gray-400 font-bold">oder Adresse eingeben</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+
+          <div className="flex items-center gap-2 border-2 border-gray-100 bg-gray-50 rounded-2xl px-4 py-3.5 mb-4 focus-within:border-red focus-within:bg-white transition-all">
             <MapPin size={18} className="text-gray-400 flex-shrink-0" />
             <input
               type="text"
@@ -127,7 +160,7 @@ export function Hero() {
           <button
             onClick={() => go(addr)}
             disabled={addr.length < 4}
-            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             Märkte in meiner Nähe anzeigen <ArrowRight size={18} />
           </button>
