@@ -8,6 +8,7 @@ import { createBrowserClient } from '@supabase/ssr'
 
 const NAV = [
   { href: '/admin',             label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/admin/users', label: 'Benutzer', icon: Users },
   { href: '/admin/statistiken', label: 'Statistiken', icon: BarChart2 },
   { href: '/admin/shoppers',    label: 'Shopper',       icon: Bike },
   { href: '/admin/kunden',      label: 'Kunden',        icon: Users },
