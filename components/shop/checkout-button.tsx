@@ -1,5 +1,5 @@
 'use client'
-// components/shop/checkout-button.tsx — with dynamic delivery fee
+// components/shop/checkout-button.tsx — with dynamic delivery fee via Geocoding REST API
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
@@ -10,8 +10,7 @@ import { PromoInput } from './promo-input'
 
 const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
-
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU4Z'
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU2I'
 
 type PromoResult = {
   id: string; code: string; discount_type: 'percent' | 'fixed'
@@ -43,50 +42,46 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
   const subtotal = items.reduce((a, i) => a + Number(i.product.price) * i.quantity, 0)
 
-  // Geocode customer address to get coordinates
+  // Geocode via REST API (no JS SDK needed)
   const geocodeAddress = async (addr: string) => {
-    if (!addr.trim() || !storeLat || !storeLng) return
+    if (!addr.trim() || !storeLat || !storeLng) {
+      if (!storeLat || !storeLng) toast.error('Store-Koordinaten fehlen')
+      return
+    }
     setFeeLoading(true)
     try {
-      const g = (window as any).google
-      if (!g?.maps) {
-        // Load Maps if not loaded
-        await new Promise<void>((resolve) => {
-          if ((window as any).google?.maps) { resolve(); return }
-          const s = document.createElement('script')
-          s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=de`
-          s.onload = () => resolve()
-          document.head.appendChild(s)
-        })
-      }
-      new (window as any).google.maps.Geocoder().geocode(
-        { address: addr + ', Deutschland', region: 'DE' },
-        async (results: any[], status: string) => {
-          if (status === 'OK' && results?.[0]) {
-            const loc = results[0].geometry.location
-            const coords = { lat: loc.lat(), lng: loc.lng() }
-            setCustomerCoords(coords)
-            // Calculate fee
-            const res = await fetch('/api/delivery-fee', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                storeLat, storeLng,
-                customerLat: coords.lat, customerLng: coords.lng,
-                itemCount: items.length,
-              }),
-            })
-            const data = await res.json()
-            setFeeData(data)
-          } else {
-            toast.error('Adresse nicht gefunden')
-          }
-          setFeeLoading(false)
-        }
+      const encoded = encodeURIComponent(addr + ', Deutschland')
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&region=DE&key=${GOOGLE_MAPS_API_KEY}`
       )
+      const data = await res.json()
+
+      if (data.status !== 'OK' || !data.results?.[0]) {
+        toast.error('Adresse nicht gefunden. Bitte vollständige Adresse eingeben.')
+        setFeeLoading(false)
+        return
+      }
+
+      const loc = data.results[0].geometry.location
+      const coords = { lat: loc.lat, lng: loc.lng }
+      setCustomerCoords(coords)
+
+      // Calculate fee
+      const feeRes = await fetch('/api/delivery-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeLat, storeLng,
+          customerLat: coords.lat, customerLng: coords.lng,
+          itemCount: items.length,
+        }),
+      })
+      const feeJson = await feeRes.json()
+      setFeeData(feeJson)
     } catch (err) {
-      setFeeLoading(false)
+      toast.error('Fehler bei der Adresssuche')
     }
+    setFeeLoading(false)
   }
 
   // Recalculate when items change
@@ -102,7 +97,7 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
         }),
       }).then(r => r.json()).then(setFeeData)
     }
-  }, [items.length, storeLat, storeLng])
+  }, [items.length])
 
   const deliveryFee = feeData?.totalFee ?? 1.99
   const serviceFee = Math.round(subtotal * 0.05 * 100) / 100
@@ -112,8 +107,8 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
   const checkout = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { toast.error('Bitte melden Sie sich an'); router.push('/anmelden?next=/'); return }
-    if (!addressInput) { toast.error('Bitte Lieferadresse eingeben'); return }
-    if (!customerCoords) { toast.error('Adresse konnte nicht gefunden werden'); return }
+    if (!addressInput.trim()) { toast.error('Bitte Lieferadresse eingeben'); return }
+    if (!customerCoords) { toast.error('Bitte Adresse prüfen'); return }
 
     setLoading(true)
     try {
@@ -150,7 +145,7 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Address input with fee calculation */}
+      {/* Address input */}
       <div>
         <label className="text-xs font-black text-gray-400 uppercase tracking-wide mb-2 block">
           📍 Ihre Lieferadresse
@@ -162,18 +157,23 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
               value={addressInput}
               onChange={e => setAddressInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && geocodeAddress(addressInput)}
-              placeholder="Straße, Hausnummer, PLZ..."
+              placeholder="z.B. Königstraße 10, 90402 Nürnberg"
               className="flex-1 outline-none text-sm bg-transparent"
             />
           </div>
           <button
             onClick={() => geocodeAddress(addressInput)}
             disabled={feeLoading || !addressInput.trim()}
-            className="px-4 border-2 border-gray-100 rounded-2xl text-xs font-bold text-gray-600 hover:border-red hover:text-red transition-all disabled:opacity-40"
+            className="px-4 border-2 border-gray-100 rounded-2xl text-xs font-bold text-gray-600 hover:border-red hover:text-red transition-all disabled:opacity-40 flex-shrink-0"
           >
             {feeLoading ? <Loader2 size={14} className="animate-spin" /> : 'Prüfen'}
           </button>
         </div>
+        {customerCoords && (
+          <p className="text-xs text-green-600 font-bold mt-1.5 flex items-center gap-1">
+            ✓ Adresse gefunden — {feeData?.distanceKm} km vom Markt
+          </p>
+        )}
       </div>
 
       {/* Fee breakdown */}
@@ -183,26 +183,21 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
             <Package size={15} /> Lieferdetails
           </div>
           <div className="flex justify-between text-blue-700 text-xs">
-            <span className="flex items-center gap-1.5"><MapPin size={12} /> Entfernung</span>
-            <span>{feeData.distanceKm} km</span>
+            <span>📏 Entfernung</span><span>{feeData.distanceKm} km</span>
           </div>
           <div className="flex justify-between text-blue-700 text-xs">
-            <span className="flex items-center gap-1.5"><Package size={12} /> Geschätztes Gewicht</span>
-            <span>~{feeData.estimatedWeightKg} kg</span>
+            <span>📦 Geschätztes Gewicht</span><span>~{feeData.estimatedWeightKg} kg</span>
           </div>
           <div className="flex justify-between text-blue-700 text-xs">
-            <span>Grundgebühr</span>
-            <span>{feeData.baseFee.toFixed(2)} €</span>
+            <span>Grundgebühr</span><span>{feeData.baseFee.toFixed(2)} €</span>
           </div>
           {feeData.isPeakHour && (
             <div className="flex justify-between text-orange-600 text-xs font-bold">
-              <span className="flex items-center gap-1.5"><Clock size={12} /> Stoßzeit +30%</span>
-              <span>+{feeData.peakSurcharge.toFixed(2)} €</span>
+              <span>🕐 Stoßzeit +30%</span><span>+{feeData.peakSurcharge.toFixed(2)} €</span>
             </div>
           )}
           <div className="border-t border-blue-200 pt-2 flex justify-between font-black text-blue-900">
-            <span>Liefergebühr</span>
-            <span>{feeData.totalFee.toFixed(2)} €</span>
+            <span>Liefergebühr</span><span>{feeData.totalFee.toFixed(2)} €</span>
           </div>
           {feeData.isPeakHour && (
             <div className="flex items-center gap-1.5 text-[10px] text-orange-600 bg-orange-50 rounded-lg px-2 py-1">
@@ -212,7 +207,7 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
         </div>
       )}
 
-      {/* Promo code */}
+      {/* Promo */}
       <PromoInput subtotal={subtotal} onApply={setPromo} applied={promo} />
 
       {/* Tip */}
@@ -227,14 +222,10 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
         </div>
       </div>
 
-      {/* Order summary */}
+      {/* Summary */}
       <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2 text-sm">
-        <div className="flex justify-between text-gray-500">
-          <span>Zwischensumme</span><span>{subtotal.toFixed(2)} €</span>
-        </div>
-        <div className="flex justify-between text-gray-500">
-          <span>Servicegebühr (5%)</span><span>{serviceFee.toFixed(2)} €</span>
-        </div>
+        <div className="flex justify-between text-gray-500"><span>Zwischensumme</span><span>{subtotal.toFixed(2)} €</span></div>
+        <div className="flex justify-between text-gray-500"><span>Servicegebühr (5%)</span><span>{serviceFee.toFixed(2)} €</span></div>
         <div className="flex justify-between text-gray-500">
           <span>Liefergebühr {feeData?.isPeakHour ? '🕐' : ''}</span>
           <span>{deliveryFee.toFixed(2)} €</span>
@@ -251,22 +242,15 @@ export function CheckoutSection({ storeId, storeLat, storeLng }: {
         disabled={loading || items.length === 0 || !customerCoords}
         className="btn-red w-full py-4 text-base"
       >
-        {loading
-          ? <><Loader2 size={18} className="animate-spin" /> Wird weitergeleitet...</>
-          : !customerCoords
-            ? 'Adresse eingeben um fortzufahren'
-            : <><CreditCard size={18} /> Jetzt bezahlen — {total.toFixed(2)} €</>}
+        {loading ? <><Loader2 size={18} className="animate-spin" /> Wird weitergeleitet...</>
+          : !customerCoords ? 'Adresse prüfen um fortzufahren'
+          : <><CreditCard size={18} /> Jetzt bezahlen — {total.toFixed(2)} €</>}
       </button>
 
       {!customerCoords && items.length > 0 && (
-        <p className="text-xs text-center text-gray-400">
-          Bitte Lieferadresse eingeben und prüfen, um die Liefergebühr zu berechnen
-        </p>
+        <p className="text-xs text-center text-gray-400">Bitte Adresse eingeben und auf "Prüfen" klicken</p>
       )}
-
-      <p className="text-xs text-gray-400 text-center">
-        🔒 Sichere Zahlung über Stripe · Kreditkarte, Apple Pay, Google Pay
-      </p>
+      <p className="text-xs text-gray-400 text-center">🔒 Sichere Zahlung über Stripe</p>
     </div>
   )
 }
