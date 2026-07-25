@@ -22,7 +22,7 @@ export function ProductCatalog({ store, products, categories }: Props) {
       if (!confirm(`Warenkorb enthält Artikel von einem anderen Markt. Warenkorb leeren und ${store.name} wählen?`)) return
       useCart.getState().clearCart()
     }
-    setStore(store.id, store.name)
+    setStore(store.id, store.name, store.delivery_fee, (store as any).lat, (store as any).lng)
     addItem(product)
     toast.success(`${product.name} hinzugefügt`, { duration: 1500 })
   }
