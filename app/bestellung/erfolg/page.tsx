@@ -1,11 +1,18 @@
+'use client'
 // app/bestellung/erfolg/page.tsx
+import { useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { CheckCircle2, ArrowRight } from 'lucide-react'
-
-export const dynamic = 'force-dynamic'
+import { useCart } from '@/lib/cart-store'
 
 export default function ErfolgPage() {
+  const clearCart = useCart(s => s.clearCart)
+
+  useEffect(() => {
+    clearCart()
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
       <div className="max-w-md w-full">
