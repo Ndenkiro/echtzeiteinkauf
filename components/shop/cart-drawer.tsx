@@ -82,7 +82,7 @@ export function CartDrawer() {
         {/* Checkout section */}
         {items.length > 0 && storeId && (
           <div className="border-t border-gray-100 px-6 py-5 bg-gray-50/50">
-            <CheckoutSection storeId={storeId} deliveryFee={deliveryFee || 1.99} />
+            <CheckoutSection storeId={storeId} />
           </div>
         )}
       </div>
