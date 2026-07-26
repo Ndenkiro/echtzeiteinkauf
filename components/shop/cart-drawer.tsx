@@ -12,7 +12,8 @@ export function CartDrawer() {
   const removeItem = useCart(s => s.removeItem)
   const storeId = useCart(s => s.storeId)
   const storeName = useCart(s => s.storeName)
-  const deliveryFee = useCart(s => s.deliveryFee)
+  const storeLat = useCart(s => s.storeLat)
+  const storeLng = useCart(s => s.storeLng)
 
   useEffect(() => {
     const handler = () => setOpen(true)
@@ -82,7 +83,7 @@ export function CartDrawer() {
         {/* Checkout section */}
         {items.length > 0 && storeId && (
           <div className="border-t border-gray-100 px-6 py-5 bg-gray-50/50">
-            <CheckoutSection storeId={storeId} />
+            <CheckoutSection storeId={storeId} storeLat={storeLat ?? undefined} storeLng={storeLng ?? undefined} />
           </div>
         )}
       </div>
