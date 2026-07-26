@@ -16,7 +16,7 @@ export function ProductCatalog({ store, products, categories }: Props) {
   const { addItem, removeItem, setQty, items, storeId, setStore, totalItems, subtotal } = useCart()
   const router = useRouter()
 
-  // Switch store warning
+  // Switch store warning bbbbb
   const handleAddToCart = (product: Product) => {
     if (storeId && storeId !== store.id) {
       if (!confirm(`Warenkorb enthält Artikel von einem anderen Markt. Warenkorb leeren und ${store.name} wählen?`)) return
