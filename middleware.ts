@@ -7,104 +7,112 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 const COOKIE_DOMAIN = '.echtzeiteinkauf.com'
 const ADMIN_HOSTS = ['admin.echtzeiteinkauf.com']
-const PROTECTED_PREFIXES = ['/konto', '/shopper-portal', '/admin']
+
+// Route that renders the admin login form (must NOT start with /admin)
+const ADMIN_LOGIN_ROUTE = '/panel-login'
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
   const isAdminHost = ADMIN_HOSTS.some(h => host === h || host.startsWith(h + ':'))
   const { pathname, search } = request.nextUrl
 
-  // ── 1. Admin subdomain rewrite ──────────────────────────────
-  let rewrittenPath = pathname
+  // ═══ ADMIN SUBDOMAIN ═══════════════════════════════════════
   if (isAdminHost) {
-    // /login on the admin host → the dedicated admin login page
-    if (pathname === '/login' || pathname === '/anmelden') {
-      rewrittenPath = '/admin-login'
-    } else if (!pathname.startsWith('/admin')) {
-      const passthrough = ['/admin-login', '/auth', '/api', '/_next']
-      if (!passthrough.some(p => pathname.startsWith(p))) {
-        rewrittenPath = pathname === '/' ? '/admin' : `/admin${pathname}`
-      }
+    // Never touch internals
+    if (pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.startsWith('/auth')) {
+      return NextResponse.next()
     }
+
+    const isLoginPath = pathname === '/login' || pathname === ADMIN_LOGIN_ROUTE
+
+    // Build the internal path we actually render
+    const internalPath = isLoginPath
+      ? ADMIN_LOGIN_ROUTE
+      : (pathname === '/' ? '/admin' : `/admin${pathname}`)
+
+    const url = request.nextUrl.clone()
+    url.pathname = internalPath
+
+    let response = internalPath !== pathname
+      ? NextResponse.rewrite(url)
+      : NextResponse.next()
+
+    const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON, {
+      cookies: {
+        get: (name: string) => request.cookies.get(name)?.value,
+        set: (name: string, value: string, options: CookieOptions) => {
+          response.cookies.set({ name, value, ...options, domain: COOKIE_DOMAIN, sameSite: 'lax', secure: true })
+        },
+        remove: (name: string, options: CookieOptions) => {
+          response.cookies.set({ name, value: '', ...options, domain: COOKIE_DOMAIN, maxAge: 0 })
+        },
+      },
+    })
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Login page: always render it, redirect away only if already an admin
+    if (isLoginPath) {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users').select('role').eq('auth_id', user.id).maybeSingle()
+        if (profile && ['admin', 'subadmin'].includes(profile.role)) {
+          return NextResponse.redirect(new URL('/', request.url))
+        }
+      }
+      return response
+    }
+
+    // Every other admin page requires an admin session
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    const { data: profile } = await supabase
+      .from('users').select('role').eq('auth_id', user.id).maybeSingle()
+
+    if (!profile || !['admin', 'subadmin'].includes(profile.role)) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    return response
   }
 
-  const url = request.nextUrl.clone()
-  url.pathname = rewrittenPath
+  // ═══ MAIN DOMAIN ═══════════════════════════════════════════
+  // /admin on the main domain → send to the subdomain
+  if (pathname.startsWith('/admin')) {
+    const adminUrl = new URL(request.url)
+    adminUrl.hostname = 'admin.echtzeiteinkauf.com'
+    adminUrl.pathname = pathname.replace(/^\/admin/, '') || '/'
+    return NextResponse.redirect(adminUrl)
+  }
 
-  let response = rewrittenPath !== pathname
-    ? NextResponse.rewrite(url)
-    : NextResponse.next({ request: { headers: request.headers } })
+  // Hide the internal login route on the main domain
+  if (pathname === ADMIN_LOGIN_ROUTE) {
+    return NextResponse.redirect(new URL('https://admin.echtzeiteinkauf.com/login'))
+  }
 
-  // ── 2. Supabase session ─────────────────────────────────────
+  let response = NextResponse.next({ request: { headers: request.headers } })
+
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON, {
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value
+      get: (name: string) => request.cookies.get(name)?.value,
+      set: (name: string, value: string, options: CookieOptions) => {
+        response.cookies.set({ name, value, ...options, domain: COOKIE_DOMAIN, sameSite: 'lax', secure: true })
       },
-      set(name: string, value: string, options: CookieOptions) {
-        response.cookies.set({
-          name, value, ...options,
-          domain: COOKIE_DOMAIN,
-          sameSite: 'lax',
-          secure: true,
-        })
-      },
-      remove(name: string, options: CookieOptions) {
-        response.cookies.set({
-          name, value: '', ...options,
-          domain: COOKIE_DOMAIN,
-          maxAge: 0,
-        })
+      remove: (name: string, options: CookieOptions) => {
+        response.cookies.set({ name, value: '', ...options, domain: COOKIE_DOMAIN, maxAge: 0 })
       },
     },
   })
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // ── 3. Auth required? ───────────────────────────────────────
-  const needsAuth = PROTECTED_PREFIXES.some(p => rewrittenPath.startsWith(p))
-
+  const needsAuth = ['/konto', '/shopper-portal'].some(p => pathname.startsWith(p))
   if (needsAuth && !user) {
-    if (isAdminHost) {
-      // Admin host → dedicated admin login
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
     const loginUrl = new URL('/anmelden', request.url)
     loginUrl.searchParams.set('next', pathname + search)
     return NextResponse.redirect(loginUrl)
-  }
-
-  // ── 4. Admin role check ─────────────────────────────────────
-  if (rewrittenPath.startsWith('/admin') && !rewrittenPath.startsWith('/admin-login') && user) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('auth_id', user.id)
-      .single()
-
-    if (!profile || !['admin', 'subadmin'].includes(profile.role)) {
-      if (isAdminHost) {
-        return NextResponse.redirect(new URL('/login', request.url))
-      }
-      return NextResponse.redirect(new URL('https://echtzeiteinkauf.com/'))
-    }
-  }
-
-  // ── 5. Already logged in as admin → skip login page ─────────
-  if (isAdminHost && rewrittenPath === '/admin-login' && user) {
-    const { data: profile } = await supabase
-      .from('users').select('role').eq('auth_id', user.id).single()
-    if (profile && ['admin', 'subadmin'].includes(profile.role)) {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
-
-  // ── 6. Main domain /admin → redirect to subdomain ───────────
-  if (!isAdminHost && pathname.startsWith('/admin')) {
-    const adminUrl = new URL(request.url)
-    adminUrl.hostname = 'admin.echtzeiteinkauf.com'
-    adminUrl.pathname = pathname.replace(/^\/admin/, '') || '/'
-    return NextResponse.redirect(adminUrl)
   }
 
   return response
