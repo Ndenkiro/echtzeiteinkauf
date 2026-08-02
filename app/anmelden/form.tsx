@@ -1,65 +1,72 @@
 'use client'
-import { useState } from 'react'
+// app/anmelden/form.tsx — password-based login
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
-export function AnmeldenForm() {
-  const [tab, setTab]           = useState<'magic' | 'password'>('magic')
-  const [email, setEmail]       = useState('')
+const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
+
+function AnmeldenInner() {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading]   = useState(false)
-  const [sent, setSent]         = useState(false)
+  const [showPw, setShowPw] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
   const router = useRouter()
-  const getSupabase = () => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
   const params = useSearchParams()
-  const next = params.get('next') || '/konto'
-  
+  const next = params.get('next')
 
-  const handleMagicLink = async () => {
-    if (!email.trim()) { toast.error('Bitte E-Mail eingeben'); return }
+  const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
+
+  const login = async () => {
+    setError('')
+    if (!email.trim() || !password) {
+      setError('Bitte E-Mail und Passwort eingeben')
+      return
+    }
+
     setLoading(true)
-    const { error } = await getSupabase().auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `https://echtzeiteinkauf.com/auth/callback?next=${next}` },
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
     })
-    setLoading(false)
-    if (error) { toast.error(error.message); return }
-    setSent(true)
-  }
 
-  const handlePasswordLogin = async () => {
-    if (!email.trim() || !password) { toast.error('Bitte alle Felder ausfüllen'); return }
-    setLoading(true)
-    const { error } = await getSupabase().auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) { toast.error('E-Mail oder Passwort falsch'); return }
-    toast.success('Willkommen zurück!')
-    router.push(next.startsWith('/shopper') ? next : '/shopper-portal')
+    if (authError) {
+      setLoading(false)
+      if (authError.message.includes('Email not confirmed')) {
+        setError('Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.')
+      } else {
+        setError('E-Mail oder Passwort ist falsch')
+      }
+      return
+    }
+
+    // Route by role
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role, full_name')
+      .eq('auth_id', data.user.id)
+      .maybeSingle()
+
+    toast.success(`Willkommen zurück${profile?.full_name ? ', ' + profile.full_name.split(' ')[0] : ''}!`)
+
+    if (next) {
+      router.push(next)
+    } else if (profile?.role === 'shopper') {
+      router.push('/shopper-portal')
+    } else if (profile?.role === 'admin' || profile?.role === 'subadmin') {
+      window.location.href = 'https://admin.echtzeiteinkauf.com/'
+      return
+    } else {
+      router.push('/konto')
+    }
     router.refresh()
-  }
-
-  if (sent) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-        <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-sm border border-gray-100">
-          <div className="w-16 h-16 rounded-full bg-red/10 flex items-center justify-center mx-auto mb-5">
-            <Mail size={28} className="text-red" />
-          </div>
-          <h1 className="text-2xl font-black text-gray-900 mb-2">Link gesendet!</h1>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            Öffnen Sie die E-Mail an <strong className="text-gray-900">{email}</strong> und klicken Sie auf den Anmeldelink.
-          </p>
-          <Link href="/" className="text-red font-bold text-sm hover:underline">Zurück zur Startseite</Link>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -74,50 +81,76 @@ export function AnmeldenForm() {
           <h1 className="text-2xl font-black text-gray-900 mb-1 text-center">Anmelden</h1>
           <p className="text-sm text-gray-500 text-center mb-6">Schön, Sie wiederzusehen</p>
 
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
-            <button
-              onClick={() => setTab('magic')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tab === 'magic' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
-            >Käufer (Link per E-Mail)</button>
-            <button
-              onClick={() => setTab('password')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tab === 'password' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
-            >Shopper (Passwort)</button>
+          {error && (
+            <div className="flex items-start gap-2 bg-red/5 border border-red/20 rounded-xl px-3.5 py-3 mb-4">
+              <AlertCircle size={15} className="text-red flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-red font-medium">{error}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 mb-3">
+            <div className="flex items-center gap-2 border-2 border-gray-100 rounded-xl px-4 py-3 focus-within:border-red transition-colors">
+              <Mail size={16} className="text-gray-400 flex-shrink-0" />
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && login()}
+                placeholder="ihre@email.de"
+                autoComplete="username"
+                className="flex-1 outline-none text-sm bg-transparent"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 border-2 border-gray-100 rounded-xl px-4 py-3 focus-within:border-red transition-colors">
+              <Lock size={16} className="text-gray-400 flex-shrink-0" />
+              <input
+                type={showPw ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && login()}
+                placeholder="Passwort"
+                autoComplete="current-password"
+                className="flex-1 outline-none text-sm bg-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(v => !v)}
+                className="text-gray-300 hover:text-gray-500 transition-colors"
+              >
+                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </div>
 
-          {tab === 'magic' ? (
-            <>
-              <div className="flex items-center gap-2 border-2 border-gray-100 rounded-xl px-4 py-3 mb-5 focus-within:border-red transition-colors">
-                <Mail size={16} className="text-gray-400" />
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleMagicLink()} placeholder="ihre@email.de" className="flex-1 outline-none text-sm bg-transparent" />
-              </div>
-              <button onClick={handleMagicLink} disabled={loading} className="btn-red w-full py-3.5">
-                {loading ? 'Wird gesendet...' : 'Anmeldelink erhalten'} <ArrowRight size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-3 mb-5">
-                <div className="flex items-center gap-2 border-2 border-gray-100 rounded-xl px-4 py-3 focus-within:border-orange transition-colors">
-                  <Mail size={16} className="text-gray-400" />
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ihre@email.de" className="flex-1 outline-none text-sm bg-transparent" />
-                </div>
-                <div className="flex items-center gap-2 border-2 border-gray-100 rounded-xl px-4 py-3 focus-within:border-orange transition-colors">
-                  <Lock size={16} className="text-gray-400" />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handlePasswordLogin()} placeholder="Passwort" className="flex-1 outline-none text-sm bg-transparent" />
-                </div>
-              </div>
-              <button onClick={handlePasswordLogin} disabled={loading} className="w-full bg-orange text-black font-black rounded-xl py-3.5 flex items-center justify-center gap-2 hover:bg-orange-dark hover:text-white transition-colors disabled:opacity-50">
-                {loading ? 'Wird angemeldet...' : 'Anmelden'} <ArrowRight size={16} />
-              </button>
-            </>
-          )}
+          <div className="flex justify-end mb-5">
+            <Link href="/passwort-vergessen" className="text-xs font-bold text-gray-400 hover:text-red transition-colors">
+              Passwort vergessen?
+            </Link>
+          </div>
+
+          <button onClick={login} disabled={loading} className="btn-red w-full py-3.5">
+            {loading ? 'Wird angemeldet...' : <>Anmelden <ArrowRight size={16} /></>}
+          </button>
         </div>
 
         <p className="text-center text-sm text-gray-400 mt-6">
-          Noch kein Konto? <Link href="/registrieren" className="text-red font-bold hover:underline">Jetzt registrieren</Link>
+          Noch kein Konto?{' '}
+          <Link href="/registrieren" className="text-red font-bold hover:underline">Jetzt registrieren</Link>
         </p>
       </div>
     </div>
+  )
+}
+
+export function AnmeldenForm() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-red border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <AnmeldenInner />
+    </Suspense>
   )
 }
