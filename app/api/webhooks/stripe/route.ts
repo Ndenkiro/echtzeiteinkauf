@@ -22,11 +22,18 @@ export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')!
 
+  const secret = process.env.STRIPE_WEBHOOK_SECRET || ''
+
+  console.log('[stripe-webhook] body bytes:', body.length)
+  console.log('[stripe-webhook] signature header present:', !!signature)
+  console.log('[stripe-webhook] secret prefix:', secret.slice(0, 12), 'length:', secret.length)
+
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
-  } catch {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    event = stripe.webhooks.constructEvent(body, signature, secret.trim())
+  } catch (err: any) {
+    console.error('[stripe-webhook] verification failed:', err.message)
+    return NextResponse.json({ error: 'Invalid signature', detail: err.message }, { status: 400 })
   }
 
   if (event.type !== 'checkout.session.completed') {
