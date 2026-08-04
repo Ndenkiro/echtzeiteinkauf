@@ -25,7 +25,6 @@ export async function middleware(request: NextRequest) {
 
     const isLoginPath = pathname === '/login' || pathname === ADMIN_LOGIN_ROUTE
 
-    // Build the internal path we actually render
     const internalPath = isLoginPath
       ? ADMIN_LOGIN_ROUTE
       : (pathname === '/' ? '/admin' : `/admin${pathname}`)
@@ -120,6 +119,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|logo.png|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)',
+    // `api` excluded: Stripe webhooks need the raw, untouched request body
+    '/((?!api|_next/static|_next/image|favicon.ico|logo.png|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)',
   ],
 }
