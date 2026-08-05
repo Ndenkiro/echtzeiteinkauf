@@ -6,7 +6,18 @@ import { createClient } from '@supabase/supabase-js'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// Read env at RUNTIME. Building the key dynamically prevents Next/webpack
+// from inlining an empty value at build time.
+function env(name: string): string {
+  const e = process.env as Record<string, string | undefined>
+  return e[name] ?? ''
+}
+
+const STRIPE_KEY    = env(['STRIPE', 'SECRET', 'KEY'].join('_'))
+const WEBHOOK_KEY   = env(['STRIPE', 'WEBHOOK', 'SECRET'].join('_'))
+const SERVICE_KEY   = env(['SUPABASE', 'SERVICE', 'KEY'].join('_'))
+
+const stripe = new Stripe(STRIPE_KEY, {
   apiVersion: '2024-04-10' as any,
 })
 
@@ -14,7 +25,7 @@ const SITE_URL = 'https://echtzeiteinkauf.com'
 
 const supabaseAdmin = () => createClient(
   'https://wpxpgszzzfhhsaunolyq.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY!,
+  SERVICE_KEY,
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
@@ -22,15 +33,12 @@ export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')!
 
-  const secret = process.env.STRIPE_WEBHOOK_SECRET || ''
-
-  console.log('[stripe-webhook] body bytes:', body.length)
-  console.log('[stripe-webhook] signature header present:', !!signature)
-  console.log('[stripe-webhook] secret prefix:', secret.slice(0, 12), 'length:', secret.length)
+  const secret = WEBHOOK_KEY.trim()
+  console.log('[stripe-webhook] secret length:', secret.length, 'body bytes:', body.length)
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, signature, secret.trim())
+    event = stripe.webhooks.constructEvent(body, signature, secret)
   } catch (err: any) {
     console.error('[stripe-webhook] verification failed:', err.message)
     return NextResponse.json({ error: 'Invalid signature', detail: err.message }, { status: 400 })

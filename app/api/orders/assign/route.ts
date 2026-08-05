@@ -2,9 +2,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+function env(name: string): string {
+  const e = process.env as Record<string, string | undefined>
+  return e[name] ?? ''
+}
+const SERVICE_KEY = env(['SUPABASE', 'SERVICE', 'KEY'].join('_'))
+const RESEND_KEY  = env(['RESEND', 'API', 'KEY'].join('_'))
+
 const supabaseAdmin = () => createClient(
   'https://wpxpgszzzfhhsaunolyq.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY!,
+  SERVICE_KEY,
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
@@ -49,7 +59,7 @@ export async function POST(request: Request) {
           ) / 100
         : 0
 
-      if (process.env.RESEND_API_KEY && candidates?.length) {
+      if (RESEND_KEY && candidates?.length) {
         await Promise.allSettled(
           candidates.map((c: any) => {
             const user = Array.isArray(c.users) ? c.users[0] : c.users
@@ -68,7 +78,7 @@ export async function POST(request: Request) {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                Authorization: `Bearer ${RESEND_KEY}`,
               },
               body: JSON.stringify({
                 from: 'Echtzeiteinkauf <noreply@echtzeiteinkauf.com>',
