@@ -6,24 +6,25 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import {
   Package, MapPin, Clock, Euro, CheckCircle2, Loader2,
-  MessageCircle, X, Lock, ArrowRight, Zap, Power, Settings,
-  RefreshCw, TrendingUp
+  MessageCircle, X, Lock, ArrowRight, Power, Settings, RefreshCw
 } from 'lucide-react'
 import { OrderChat } from '@/components/chat/order-chat'
 import { MissionActions } from '@/components/shopper/mission-actions'
+import { LocationSearch, type SearchLocation } from '@/components/shopper/location-search'
 
 const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
 
-const net = (commission: number, tip: number) =>
-  Math.round(((Number(commission) + Number(tip || 0)) * 0.9) * 100) / 100
+const net = (c: number, t: number) =>
+  Math.round(((Number(c) + Number(t || 0)) * 0.9) * 100) / 100
 
 export default function AuftraegePage() {
   const [profileId, setProfileId] = useState<string | null>(null)
   const [approved, setApproved] = useState<boolean | null>(null)
   const [hasAddress, setHasAddress] = useState(false)
   const [isOnline, setIsOnline] = useState(false)
-  const [radius, setRadius] = useState(20)
+  const [homeRadius, setHomeRadius] = useState(20)
+  const [searchLoc, setSearchLoc] = useState<SearchLocation>(null)
   const [assigned, setAssigned] = useState<any[]>([])
   const [missions, setMissions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +33,15 @@ export default function AuftraegePage() {
   const [chatOrder, setChatOrder] = useState<any>(null)
 
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
+
+  const loadMissions = async (loc: SearchLocation) => {
+    const { data } = await supabase.rpc('get_open_missions', {
+      p_lat: loc?.lat ?? null,
+      p_lng: loc?.lng ?? null,
+      p_radius: loc?.radius ?? null,
+    })
+    setMissions(data || [])
+  }
 
   const load = async (silent = false) => {
     if (!silent) setRefreshing(true)
@@ -52,7 +62,7 @@ export default function AuftraegePage() {
     const { data: s } = await supabase
       .from('shoppers').select('id, radius_km').eq('user_id', profile.id).maybeSingle()
     if (s) {
-      setRadius(s.radius_km || 20)
+      setHomeRadius(s.radius_km || 20)
       const { data: loc } = await supabase
         .from('shopper_locations').select('lat, is_online').eq('shopper_id', s.id).maybeSingle()
       setHasAddress(!!loc?.lat)
@@ -67,34 +77,37 @@ export default function AuftraegePage() {
       .order('placed_at')
     setAssigned(mine || [])
 
-    const { data: open } = await supabase.rpc('get_open_missions')
-    setMissions(open || [])
-
+    await loadMissions(searchLoc)
     setLoading(false); setRefreshing(false)
   }
 
   useEffect(() => { load(true) }, [])
 
+  // Re-query when the search location changes
+  useEffect(() => {
+    if (approved) loadMissions(searchLoc)
+  }, [searchLoc, approved])
+
   useEffect(() => {
     if (!approved) return
     const ch = supabase.channel('missions-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => load(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' },
+          () => loadMissions(searchLoc))
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [approved])
+  }, [approved, searchLoc])
 
   const toggleOnline = async () => {
-    const nextState = !isOnline
-    const { data, error } = await supabase.rpc('set_shopper_online', { p_online: nextState })
+    const next = !isOnline
+    const { data, error } = await supabase.rpc('set_shopper_online', { p_online: next })
     if (error || !data?.ok) {
       toast.error(data?.reason === 'no_address'
         ? 'Bitte hinterlegen Sie zuerst Ihre Adresse im Profil'
         : 'Status konnte nicht geändert werden')
       return
     }
-    setIsOnline(nextState)
-    toast.success(nextState ? 'Sie sind online 🟢' : 'Sie sind offline')
-    load(true)
+    setIsOnline(next)
+    toast.success(next ? 'Sie sind online 🟢' : 'Sie sind offline')
   }
 
   const apply = async (orderId: string) => {
@@ -103,10 +116,10 @@ export default function AuftraegePage() {
     setBusy(null)
     if (error || !data?.ok) {
       toast.error(data?.reason === 'already_taken' ? 'Bereits vergeben' : 'Bewerbung fehlgeschlagen')
-      load(true); return
+      loadMissions(searchLoc); return
     }
     toast.success('Bewerbung eingereicht')
-    load(true)
+    loadMissions(searchLoc)
   }
 
   if (loading) return (
@@ -117,13 +130,14 @@ export default function AuftraegePage() {
 
   if (!approved) return (
     <div className="max-w-lg">
-      <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+      <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-10 text-center">
         <div className="w-16 h-16 rounded-full bg-orange/15 flex items-center justify-center mx-auto mb-5">
-          <Lock size={26} className="text-orange-dark" />
+          <Lock size={26} className="text-orange" />
         </div>
-        <h1 className="font-black text-xl text-gray-900 mb-2">Noch nicht freigeschaltet</h1>
-        <p className="text-sm text-gray-500 mb-6">Reichen Sie Ihre Dokumente ein.</p>
-        <Link href="/shopper-portal/dokumente" className="inline-flex items-center gap-2 bg-orange text-black font-black rounded-xl px-6 py-3 text-sm hover:bg-orange-dark hover:text-white transition-colors">
+        <h1 className="font-black text-xl text-white mb-2">Noch nicht freigeschaltet</h1>
+        <p className="text-sm text-white/50 mb-6">Reichen Sie Ihre Dokumente ein.</p>
+        <Link href="/shopper-portal/dokumente"
+          className="inline-flex items-center gap-2 bg-orange text-black font-black rounded-xl px-6 py-3 text-sm hover:bg-orange-dark hover:text-white transition-colors">
           Zu den Dokumenten <ArrowRight size={15} />
         </Link>
       </div>
@@ -134,43 +148,26 @@ export default function AuftraegePage() {
     <div>
       <div className="flex items-start justify-between gap-3 mb-6 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Aufträge</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {assigned.length} aktiv · {missions.length} verfügbar im Umkreis von {radius} km
+          <h1 className="text-2xl font-black text-white">Aufträge</h1>
+          <p className="text-sm text-white/40 mt-1">
+            {assigned.length} aktiv · {missions.length} verfügbar
           </p>
         </div>
         <button onClick={() => load()} disabled={refreshing}
-          className="flex items-center gap-1.5 text-xs font-bold text-gray-500 border border-gray-200 rounded-xl px-3 py-2 hover:border-orange hover:text-orange-dark transition-all">
+          className="flex items-center gap-1.5 text-xs font-bold text-white/50 border border-white/15 rounded-xl px-3 py-2 hover:border-orange hover:text-orange transition-all">
           <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Aktualisieren
         </button>
       </div>
 
-      {!hasAddress && (
-        <div className="bg-orange-50 border-2 border-orange/30 rounded-2xl p-5 mb-6 flex items-start gap-4">
-          <div className="w-11 h-11 rounded-full bg-orange/20 flex items-center justify-center flex-shrink-0">
-            <MapPin size={20} className="text-orange-dark" />
-          </div>
-          <div className="flex-1">
-            <h2 className="font-black text-gray-900 mb-1">Adresse fehlt</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Hinterlegen Sie Ihre Adresse, um Aufträge in Ihrer Nähe zu sehen.
-            </p>
-            <Link href="/shopper-portal/profil"
-              className="inline-flex items-center gap-2 bg-orange text-black font-black rounded-xl px-5 py-2.5 text-sm hover:bg-orange-dark hover:text-white transition-colors">
-              <Settings size={15} /> Adresse hinterlegen
-            </Link>
-          </div>
-        </div>
-      )}
-
+      {/* Online toggle */}
       {hasAddress && !isOnline && (
-        <div className="bg-white border-2 border-gray-100 rounded-2xl p-5 mb-6 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-            <Power size={20} className="text-gray-400" />
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 mb-5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+            <Power size={18} className="text-white/40" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-black text-gray-900">Sie sind offline</div>
-            <div className="text-xs text-gray-500 mt-0.5">Gehen Sie online, um Aufträge zu erhalten</div>
+            <div className="font-black text-sm text-white">Sie sind offline</div>
+            <div className="text-[11px] text-white/40">Nur online erhalten Sie automatisch Aufträge</div>
           </div>
           <button onClick={toggleOnline}
             className="bg-green-600 text-white font-black rounded-xl px-4 py-2.5 text-sm hover:bg-green-700 transition-colors flex-shrink-0">
@@ -182,52 +179,43 @@ export default function AuftraegePage() {
       {/* Active missions */}
       {assigned.length > 0 && (
         <>
-          <h2 className="font-black text-xs text-gray-500 uppercase tracking-wide mb-3">
+          <h2 className="font-black text-xs text-white/40 uppercase tracking-wide mb-3">
             🛒 Aktive Aufträge
           </h2>
-          <div className="flex flex-col gap-4 mb-10">
+          <div className="flex flex-col gap-4 mb-8">
             {assigned.map((o: any) => {
               const c = Number(o.commission ?? o.delivery_fee)
               return (
-                <div key={o.id} className="bg-white rounded-2xl border-2 border-orange/40 p-5">
+                <div key={o.id} className="bg-white/[0.04] rounded-2xl border-2 border-orange/40 p-5">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
-                      <div className="font-black text-gray-900 truncate">{o.stores?.name}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="font-black text-white truncate">{o.stores?.name}</div>
+                      <div className="text-xs text-white/40">
                         #{o.id.slice(0,8).toUpperCase()} ·{' '}
-                        {new Date(o.placed_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(o.placed_at).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })}
                       </div>
                     </div>
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-orange-light text-orange-dark flex-shrink-0">
+                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-orange/20 text-orange flex-shrink-0">
                       {o.status === 'confirmed' ? 'Neu' : o.status === 'shopping' ? '🛒 Einkaufen' : '🚗 Unterwegs'}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+                  <div className="flex items-center gap-1.5 text-xs text-white/50 mb-3">
                     <MapPin size={12} className="flex-shrink-0" />
                     <span className="truncate">{o.delivery_address?.street}</span>
-                    {o.distance_km && <span className="flex-shrink-0">· {o.distance_km} km</span>}
                   </div>
 
-                  <div className="bg-green-50 rounded-xl p-3 mb-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-gray-500">Ihr Nettoverdienst</span>
-                      <span className="font-black text-green-700 text-lg">
+                  <div className="bg-green-500/10 rounded-xl p-3 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/50">Nettoverdienst</span>
+                      <span className="font-black text-green-400 text-lg">
                         {net(c, o.tip_amount).toFixed(2)} €
                       </span>
-                    </div>
-                    <div className="text-[10px] text-gray-400">
-                      Provision {c.toFixed(2)} €
-                      {Number(o.tip_amount) > 0 && ` + Trinkgeld ${Number(o.tip_amount).toFixed(2)} €`}
-                      {' '}− 10 % Plattformgebühr
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-1">
-                      Warenwert {Number(o.subtotal).toFixed(2)} € wird über die Einkaufskarte bezahlt
                     </div>
                   </div>
 
                   <button onClick={() => setChatOrder(o)}
-                    className="w-full flex items-center justify-center gap-2 border-2 border-gray-100 text-gray-600 font-bold rounded-xl py-2.5 text-sm hover:border-red hover:text-red transition-all mb-2">
+                    className="w-full flex items-center justify-center gap-2 border border-white/15 text-white/70 font-bold rounded-xl py-2.5 text-sm hover:border-orange hover:text-orange transition-all mb-2">
                     <MessageCircle size={15} /> Chat mit Kunde
                   </button>
 
@@ -239,39 +227,60 @@ export default function AuftraegePage() {
         </>
       )}
 
-      {/* Open missions */}
-      <h2 className="font-black text-xs text-gray-500 uppercase tracking-wide mb-3">
+      {/* Location search */}
+      <h2 className="font-black text-xs text-white/40 uppercase tracking-wide mb-3">
         📬 Verfügbare Aufträge
       </h2>
-      {!hasAddress ? null : missions.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center">
-          <Package size={36} className="text-gray-200 mx-auto mb-4" />
-          <p className="font-bold text-gray-900 mb-1">Keine Aufträge im Umkreis von {radius} km</p>
-          <Link href="/shopper-portal/profil" className="text-xs font-bold text-orange-dark hover:underline">
-            Radius im Profil ändern →
-          </Link>
+
+      <LocationSearch homeRadius={homeRadius} value={searchLoc} onChange={setSearchLoc} />
+
+      {!hasAddress && !searchLoc && (
+        <div className="bg-orange/10 border border-orange/30 rounded-2xl p-4 mb-5 flex items-start gap-3">
+          <MapPin size={18} className="text-orange flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <div className="font-black text-sm text-white mb-1">Noch keine Adresse hinterlegt</div>
+            <p className="text-xs text-white/60 mb-3">
+              Suchen Sie oben nach einem Ort oder hinterlegen Sie Ihre Adresse dauerhaft im Profil.
+            </p>
+            <Link href="/shopper-portal/profil"
+              className="inline-flex items-center gap-1.5 text-xs font-black text-orange hover:underline">
+              <Settings size={13} /> Zum Profil
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {missions.length === 0 ? (
+        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-12 text-center">
+          <Package size={34} className="text-white/20 mx-auto mb-4" />
+          <p className="font-bold text-white mb-1">
+            Keine Aufträge {searchLoc ? `im Umkreis von ${searchLoc.radius} km` : 'gefunden'}
+          </p>
+          <p className="text-sm text-white/40">
+            Suchen Sie an einem anderen Ort oder vergrößern Sie den Umkreis.
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           {missions.map((m: any) => (
-            <div key={m.order_id} className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div key={m.order_id} className="bg-white/[0.04] border border-white/10 rounded-2xl p-5 hover:border-orange/30 transition-colors">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="min-w-0">
-                  <div className="font-black text-gray-900 truncate">{m.store_name}</div>
-                  <div className="text-xs text-gray-400 truncate">
+                  <div className="font-black text-white truncate">{m.store_name}</div>
+                  <div className="text-xs text-white/40 truncate">
                     {m.street}{m.city ? `, ${m.city}` : ''}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className="font-black text-green-600 text-lg">
+                  <div className="font-black text-green-400 text-lg">
                     {Number(m.net_earning).toFixed(2)} €
                   </div>
-                  <div className="text-[10px] text-gray-400 uppercase">Netto</div>
+                  <div className="text-[10px] text-white/30 uppercase">Netto</div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-gray-400 mb-3 flex-wrap">
-                <span className="flex items-center gap-1 font-bold text-gray-600">
+              <div className="flex items-center gap-3 text-xs text-white/40 mb-3 flex-wrap">
+                <span className="flex items-center gap-1 font-bold text-orange">
                   <MapPin size={11} /> {Number(m.distance_km).toFixed(1)} km
                 </span>
                 <span className="flex items-center gap-1">
@@ -282,23 +291,15 @@ export default function AuftraegePage() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock size={11} />
-                  {new Date(m.placed_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(m.placed_at).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })}
                 </span>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3 flex justify-between text-xs">
-                <span className="text-gray-500">
-                  Provision {Number(m.commission).toFixed(2)} €
-                  {Number(m.tip_amount) > 0 && ` + ${Number(m.tip_amount).toFixed(2)} € Tip`}
-                </span>
-                <span className="font-black text-gray-700">−10 %</span>
               </div>
 
               <button onClick={() => apply(m.order_id)}
                 disabled={m.has_applied || busy === m.order_id}
                 className={`w-full font-black rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-colors ${
                   m.has_applied
-                    ? 'bg-green-50 text-green-700 border-2 border-green-200 cursor-default'
+                    ? 'bg-green-500/15 text-green-400 border border-green-500/30 cursor-default'
                     : 'bg-orange text-black hover:bg-orange-dark hover:text-white'
                 }`}>
                 {busy === m.order_id ? <Loader2 size={15} className="animate-spin" />
@@ -312,7 +313,7 @@ export default function AuftraegePage() {
 
       {chatOrder && profileId && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40" onClick={() => setChatOrder(null)} />
+          <div className="flex-1 bg-black/50" onClick={() => setChatOrder(null)} />
           <div className="w-full max-w-sm bg-white flex flex-col h-full shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="font-black text-gray-900">Chat mit Kunde</h2>
