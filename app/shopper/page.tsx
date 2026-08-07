@@ -5,6 +5,7 @@ import {
   Bike, Euro, Clock, Shield, ArrowRight,
   CheckCircle2, TrendingUp, MapPin, LogIn
 } from 'lucide-react'
+import { PublicMissions } from '@/components/shopper/public-missions'
 
 export const metadata = {
   title: 'Shopper werden — Echtzeiteinkauf',
@@ -125,6 +126,8 @@ export default function ShopperLandingPage() {
           </div>
         </div>
       </section>
+
+      <PublicMissions />
 
       <section className="max-w-5xl mx-auto px-6 py-16">
         <h2 className="text-2xl md:text-3xl font-black text-white mb-2">Warum Echtzeiteinkauf?</h2>
