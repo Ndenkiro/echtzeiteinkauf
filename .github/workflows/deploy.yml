@@ -44,39 +44,71 @@ jobs:
 
       - name: Deploy to Hetzner VPS
         uses: appleboy/ssh-action@v1
+        env:
+          SUPABASE_URL:            ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON:           ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE:        ${{ secrets.SUPABASE_SERVICE_KEY }}
+          STRIPE_SECRET:           ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK:          ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_ISSUING_WEBHOOK:  ${{ secrets.STRIPE_ISSUING_WEBHOOK_SECRET }}
+          STRIPE_PUBLISHABLE:      ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          RESEND_KEY:              ${{ secrets.RESEND_API_KEY }}
+          GH_TOKEN:                ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR:                ${{ github.actor }}
         with:
           host:     ${{ secrets.HETZNER_HOST }}
           username: deploy
           key:      ${{ secrets.HETZNER_SSH_KEY }}
+          envs: SUPABASE_URL,SUPABASE_ANON,SUPABASE_SERVICE,STRIPE_SECRET,STRIPE_WEBHOOK,STRIPE_ISSUING_WEBHOOK,STRIPE_PUBLISHABLE,RESEND_KEY,GH_TOKEN,GH_ACTOR
           script: |
             set -e
             cd /opt/echtzeiteinkauf
 
-            echo ${{ secrets.GITHUB_TOKEN }} | \
-              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             docker pull ghcr.io/ndenkiro/echtzeiteinkauf:latest
 
-            cat > .env << 'ENVEOF'
-            GITHUB_REPO=ndenkiro/echtzeiteinkauf
-            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-            SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
-            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
-            ENVEOF
+            # Keep a backup of the previous env file
+            [ -f .env ] && cp .env .env.bak
 
-            docker compose pull
+            # Write the new env file line by line so empty secrets never
+            # silently wipe a working value
+            {
+              echo "GITHUB_REPO=ndenkiro/echtzeiteinkauf"
+              echo "NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL"
+              echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON"
+              echo "SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE"
+              echo "STRIPE_SECRET_KEY=$STRIPE_SECRET"
+              echo "STRIPE_WEBHOOK_SECRET=$STRIPE_WEBHOOK"
+              echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$STRIPE_PUBLISHABLE"
+              [ -n "$STRIPE_ISSUING_WEBHOOK" ] && echo "STRIPE_ISSUING_WEBHOOK_SECRET=$STRIPE_ISSUING_WEBHOOK"
+              [ -n "$RESEND_KEY" ] && echo "RESEND_API_KEY=$RESEND_KEY"
+            } > .env.new
+
+            # Refuse to deploy with a broken service key
+            if ! grep -q "SUPABASE_SERVICE_KEY=eyJ" .env.new; then
+              echo "SUPABASE_SERVICE_KEY is not a valid JWT — keeping previous .env"
+              rm -f .env.new
+            else
+              mv .env.new .env
+            fi
+
+            # Warn (but do not fail) if the Stripe webhook secret is missing
+            grep -q "STRIPE_WEBHOOK_SECRET=whsec_" .env \
+              || echo "WARNING: STRIPE_WEBHOOK_SECRET missing or malformed — payments will not create orders"
+
+            # down/up reloads env vars reliably (restart alone does not)
+            docker compose down
             docker compose up -d --remove-orphans
             docker image prune -f
 
-            echo "✓ Deployed at $(date)"
+            echo "Deployed at $(date)"
 
       - name: Health check
         run: |
-          sleep 15
+          sleep 20
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://echtzeiteinkauf.com/api/health)
           if [ "$STATUS" != "200" ]; then
             echo "Health check failed: HTTP $STATUS"
             exit 1
           fi
-          echo "✓ Site live at https://echtzeiteinkauf.com (HTTP $STATUS)"
+          echo "Site live at https://echtzeiteinkauf.com (HTTP $STATUS)"
