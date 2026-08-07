@@ -10,7 +10,7 @@ import { UserMenu } from './user-menu'
 const LINKS = [
   { href: '/maerkte',  label: 'Märkte' },
   { href: '/#how',     label: "So funktioniert's" },
-  { href: '/#shopper', label: 'Shopper werden' },
+  { href: 'https://echtzeiteinkauf.com/shopper', label: 'Shopper werden' },
 ]
 
 export function Navbar() {
