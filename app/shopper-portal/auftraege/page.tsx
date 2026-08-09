@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import {
   Package, MapPin, Clock, Euro, CheckCircle2, Loader2,
-  MessageCircle, X, Lock, ArrowRight, Power, Settings, RefreshCw
+  MessageCircle, X, Lock, ArrowRight, Power, Settings, RefreshCw,
+  Zap, AlertCircle
 } from 'lucide-react'
 import { OrderChat } from '@/components/chat/order-chat'
 import { MissionActions } from '@/components/shopper/mission-actions'
@@ -110,16 +111,24 @@ export default function AuftraegePage() {
     toast.success(next ? 'Sie sind online 🟢' : 'Sie sind offline')
   }
 
-  const apply = async (orderId: string) => {
+  const claim = async (orderId: string) => {
     setBusy(orderId)
-    const { data, error } = await supabase.rpc('apply_to_mission', { p_order_id: orderId })
+    const { data, error } = await supabase.rpc('claim_mission', { p_order_id: orderId })
     setBusy(null)
+
     if (error || !data?.ok) {
-      toast.error(data?.reason === 'already_taken' ? 'Bereits vergeben' : 'Bewerbung fehlgeschlagen')
-      loadMissions(searchLoc); return
+      const reason = data?.reason
+      toast.error(
+        reason === 'already_taken' ? 'Zu spät — ein anderer Shopper war schneller'
+        : reason === 'already_busy' ? 'Sie haben bereits einen aktiven Auftrag'
+        : reason === 'not_approved' ? 'Ihr Konto ist noch nicht freigeschaltet'
+        : 'Auftrag konnte nicht übernommen werden'
+      )
+      load(true)
+      return
     }
-    toast.success('Bewerbung eingereicht')
-    loadMissions(searchLoc)
+    toast.success('Auftrag übernommen! 🎉')
+    load(true)
   }
 
   if (loading) return (
@@ -228,9 +237,10 @@ export default function AuftraegePage() {
       )}
 
       {/* Location search */}
-      <h2 className="font-black text-xs text-white/40 uppercase tracking-wide mb-3">
-        📬 Verfügbare Aufträge
-      </h2>
+      <div className="mb-3">
+        <h2 className="font-black text-xs text-white/40 uppercase tracking-wide">📬 Verfügbare Aufträge</h2>
+        <p className="text-[11px] text-white/30 mt-1">Wer zuerst übernimmt, bekommt den Auftrag.</p>
+      </div>
 
       <LocationSearch homeRadius={homeRadius} value={searchLoc} onChange={setSearchLoc} />
 
@@ -247,6 +257,16 @@ export default function AuftraegePage() {
               <Settings size={13} /> Zum Profil
             </Link>
           </div>
+        </div>
+      )}
+
+      {assigned.length > 0 && missions.length > 0 && (
+        <div className="bg-orange/10 border border-orange/30 rounded-2xl p-4 mb-4 flex items-start gap-3">
+          <AlertCircle size={17} className="text-orange flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-white/70 leading-relaxed">
+            Sie haben bereits einen aktiven Auftrag. Schließen Sie ihn ab,
+            um einen neuen übernehmen zu können.
+          </p>
         </div>
       )}
 
@@ -295,16 +315,12 @@ export default function AuftraegePage() {
                 </span>
               </div>
 
-              <button onClick={() => apply(m.order_id)}
-                disabled={m.has_applied || busy === m.order_id}
-                className={`w-full font-black rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-colors ${
-                  m.has_applied
-                    ? 'bg-green-500/15 text-green-400 border border-green-500/30 cursor-default'
-                    : 'bg-orange text-black hover:bg-orange-dark hover:text-white'
-                }`}>
-                {busy === m.order_id ? <Loader2 size={15} className="animate-spin" />
-                  : m.has_applied ? <><CheckCircle2 size={15} /> Beworben</>
-                  : 'Bewerben'}
+              <button onClick={() => claim(m.order_id)}
+                disabled={busy !== null || assigned.length > 0}
+                className="w-full font-black rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-colors bg-orange text-black hover:bg-orange-dark hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
+                {busy === m.order_id
+                  ? <><Loader2 size={15} className="animate-spin" /> Wird übernommen…</>
+                  : <><Zap size={15} /> Auftrag übernehmen</>}
               </button>
             </div>
           ))}

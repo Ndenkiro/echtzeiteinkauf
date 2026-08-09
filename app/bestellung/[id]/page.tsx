@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 
 const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU2I'
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU4Z'
 
 const STEPS = [
   { status: 'pending',    label: 'Bestellt',           icon: Clock },
@@ -217,7 +217,7 @@ export default function TrackingPage() {
   const step = IDX[order.status] ?? 0
   const active = !['delivered','cancelled'].includes(order.status)
   const searching = !order.shopper_id && order.assignment_status !== 'assigned'
-  const canSwitch = ['pending','confirmed'].includes(order.status) && candidates.length > 1
+  const canSwitch = false
   const commission = Number(order.commission ?? order.delivery_fee)
 
   return (
@@ -267,7 +267,7 @@ export default function TrackingPage() {
                 </h2>
                 <p className="text-sm text-gray-500 mb-3">
                   Ihre Provision von <strong className="text-gray-900">{commission.toFixed(2)} €</strong> wurde
-                  an Shopper in Ihrer Nähe gesendet.
+                  an Shopper in Ihrer Nähe gesendet. Der erste, der zusagt, übernimmt Ihre Bestellung.
                 </p>
                 <button onClick={retry} disabled={retrying}
                   className="flex items-center gap-2 text-xs font-black text-red border border-red/20 rounded-xl px-4 py-2.5 hover:bg-red/5 transition-all disabled:opacity-50">
@@ -337,10 +337,7 @@ export default function TrackingPage() {
                     {shopper?.total_deliveries !== undefined && <span>· {shopper.total_deliveries} Lieferungen</span>}
                   </div>
                 </div>
-                {canSwitch && (
-                  <button onClick={() => setShowPicker(true)}
-                    className="text-xs font-bold text-red hover:underline flex-shrink-0">Wechseln</button>
-                )}
+
               </div>
             </div>
           </div>
