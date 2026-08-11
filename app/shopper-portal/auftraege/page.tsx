@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { OrderChat } from '@/components/chat/order-chat'
 import { MissionActions } from '@/components/shopper/mission-actions'
+import { MissionMap, MissionCountdown } from '@/components/shopper/mission-tracking'
 import { LocationSearch, type SearchLocation } from '@/components/shopper/location-search'
 
 const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
@@ -72,7 +73,7 @@ export default function AuftraegePage() {
 
     const { data: mine } = await supabase
       .from('orders')
-      .select('id, status, subtotal, commission, delivery_fee, tip_amount, distance_km, placed_at, delivery_address, receipt_url, stores(name)')
+      .select('id, status, subtotal, commission, delivery_fee, tip_amount, distance_km, placed_at, assigned_at, delivery_address, receipt_url, stores(name)')
       .eq('shopper_id', profile.id)
       .in('status', ['confirmed', 'shopping', 'in_transit'])
       .order('placed_at')
@@ -122,6 +123,7 @@ export default function AuftraegePage() {
         reason === 'already_taken' ? 'Zu spät — ein anderer Shopper war schneller'
         : reason === 'already_busy' ? 'Sie haben bereits einen aktiven Auftrag'
         : reason === 'not_approved' ? 'Ihr Konto ist noch nicht freigeschaltet'
+        : reason === 'previously_released' ? 'Dieser Auftrag wurde Ihnen bereits entzogen'
         : 'Auftrag konnte nicht übernommen werden'
       )
       load(true)
@@ -213,6 +215,10 @@ export default function AuftraegePage() {
                     <MapPin size={12} className="flex-shrink-0" />
                     <span className="truncate">{o.delivery_address?.street}</span>
                   </div>
+
+                  <MissionCountdown assignedAt={o.assigned_at} />
+
+                  <MissionMap order={o} />
 
                   <div className="bg-green-500/10 rounded-xl p-3 mb-4">
                     <div className="flex justify-between items-center">
