@@ -6,6 +6,7 @@ import {
   ShoppingBag, Euro, TrendingUp, Package, ChevronRight,
   Clock, MapPin, Star, Percent
 } from 'lucide-react'
+import { ActiveOrderTracker } from '@/components/account/active-order-tracker'
 
 export const dynamic = 'force-dynamic'
 
@@ -103,6 +104,8 @@ export default async function KontoPage() {
           Mitglied seit {memberSince} · {orders.length} Bestellungen insgesamt
         </p>
       </div>
+
+<ActiveOrderTracker />
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

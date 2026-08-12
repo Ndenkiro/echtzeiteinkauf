@@ -62,6 +62,10 @@ export async function POST(request: Request) {
         tip_amount:        Number(meta.tip_amount || 0),
         total:             (session.amount_total || 0) / 100,
         payment_method:    'card',
+        stripe_session_id:     session.id,
+        stripe_payment_intent: typeof session.payment_intent === 'string'
+                                 ? session.payment_intent
+                                 : session.payment_intent?.id ?? null,
         placed_at:         new Date().toISOString(),
         distance_km:       meta.distanceKm ? Number(meta.distanceKm) : null,
         customer_lat:      address.lat ?? (meta.customerLat ? Number(meta.customerLat) : null),
