@@ -12,6 +12,7 @@ import {
 import { OrderChat } from '@/components/chat/order-chat'
 import { MissionActions } from '@/components/shopper/mission-actions'
 import { MissionMap, MissionCountdown } from '@/components/shopper/mission-tracking'
+import { ShoppingChecklist } from '@/components/shopper/shopping-checklist'
 import { LocationSearch, type SearchLocation } from '@/components/shopper/location-search'
 
 const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
@@ -33,6 +34,7 @@ export default function AuftraegePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [chatOrder, setChatOrder] = useState<any>(null)
+  const [pending, setPending] = useState<Record<string, number>>({})
 
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
 
@@ -234,7 +236,19 @@ export default function AuftraegePage() {
                     <MessageCircle size={15} /> Chat mit Kunde
                   </button>
 
-                  <MissionActions order={o} onDone={() => load(true)} />
+                  {o.status === 'shopping' && (
+                    <ShoppingChecklist
+                      orderId={o.id}
+                      onProgress={(allDone, remaining) =>
+                        setPending(p => ({ ...p, [o.id]: remaining }))}
+                    />
+                  )}
+
+                  <MissionActions
+                    order={o}
+                    onDone={() => load(true)}
+                    itemsPending={pending[o.id] ?? 0}
+                  />
                 </div>
               )
             })}

@@ -63,9 +63,10 @@ export function useLiveTracking(orderId: string | null, active: boolean) {
 type Props = {
   order: any
   onDone: () => void
+  itemsPending?: number
 }
 
-export function MissionActions({ order, onDone }: Props) {
+export function MissionActions({ order, onDone, itemsPending = 0 }: Props) {
   const [busy, setBusy] = useState(false)
   const [modal, setModal] = useState<'receipt' | 'delivery' | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -123,7 +124,12 @@ export function MissionActions({ order, onDone }: Props) {
     })
     setBusy(false)
 
-    if (error || !data?.ok) { toast.error('Fehler beim Speichern'); return }
+    if (error || !data?.ok) {
+      toast.error(data?.reason === 'items_pending'
+        ? `Noch ${data.remaining} Artikel nicht abgehakt`
+        : 'Fehler beim Speichern')
+      return
+    }
     toast.success(modal === 'receipt'
       ? 'Kassenbon gespeichert — Lieferung gestartet 🚗'
       : 'Lieferung bestätigt! 🎉 Verdienst gutgeschrieben.')
@@ -154,9 +160,14 @@ export function MissionActions({ order, onDone }: Props) {
         )}
 
         {order.status === 'shopping' && (
-          <button onClick={() => setModal('receipt')}
-            className="flex-1 bg-gray-900 text-white font-black rounded-xl py-2.5 text-sm hover:bg-black transition-colors flex items-center justify-center gap-2">
-            <Receipt size={15} /> Kassenbon &amp; losfahren
+          <button
+            onClick={() => itemsPending > 0
+              ? toast.error(`Noch ${itemsPending} Artikel offen — bitte alle abhaken`)
+              : setModal('receipt')}
+            disabled={itemsPending > 0}
+            className="flex-1 bg-gray-900 text-white font-black rounded-xl py-2.5 text-sm hover:bg-black transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <Receipt size={15} />
+            {itemsPending > 0 ? `Noch ${itemsPending} Artikel offen` : 'Kassenbon & losfahren'}
           </button>
         )}
 
