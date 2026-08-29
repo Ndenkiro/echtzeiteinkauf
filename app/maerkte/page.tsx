@@ -6,9 +6,13 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { Navbar } from '@/components/layout/navbar'
 import { Footer } from '@/components/layout/footer'
-import { Search, ArrowRight, Clock, Loader2, Crosshair, MapPin, Navigation } from 'lucide-react'
+import { Search, ArrowRight, Clock, Loader2, Crosshair, MapPin, Navigation, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Suspense } from 'react'
+import {
+  getRecentAddresses, saveRecentAddress, removeRecentAddress,
+  type RecentAddress,
+} from '@/lib/recent-addresses'
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU2I'
 
@@ -69,6 +73,9 @@ function MaerkteContent() {
   const [selected, setSelected] = useState<FoundStore | null>(null)
   const [shoppers, setShoppers] = useState<any[]>([])
   const [expandedHours, setExpandedHours] = useState(false)
+  const [recents, setRecents] = useState<RecentAddress[]>([])
+  const [isHistory, setIsHistory] = useState(false)
+  const [showRecents, setShowRecents] = useState(false)
 
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
 
@@ -209,20 +216,26 @@ function MaerkteContent() {
     }
   }, [ready, searchNearby])
 
-  const searchAddress = () => {
-    if (!query.trim()) return
+  const searchAddress = (override?: string) => {
+    const q = (override ?? query).trim()
+    if (!q) return
     const g = (window as any).google
     setSearching(true)
+    setShowRecents(false)
     new g.maps.Geocoder().geocode(
-      { address: query + ', Deutschland', region: 'DE' },
-      (results: any[], status: string) => {
+      { address: q + ', Deutschland', region: 'DE' },
+      async (results: any[], status: string) => {
         if (status === 'OK' && results?.[0]) {
           const loc = results[0].geometry.location
           const center = { lat: loc.lat(), lng: loc.lng() }
+          const pretty = results[0].formatted_address.replace(/,\s*(Deutschland|Germany)\s*$/i, '')
+          setQuery(pretty)
           mapInstance.current.setCenter(center)
           mapInstance.current.setZoom(13)
           setSelected(null)
           searchNearby(center)
+          await saveRecentAddress(pretty, center)
+          getRecentAddresses(4).then(r => { setRecents(r.addresses); setIsHistory(r.isHistory) })
         } else {
           setSearching(false)
           toast.error('Adresse nicht gefunden')
@@ -235,13 +248,40 @@ function MaerkteContent() {
   const useMyLocation = () => {
     if (!navigator.geolocation) { toast.error('Standort nicht verfügbar'); return }
     setLocating(true)
+    setShowRecents(false)
     navigator.geolocation.getCurrentPosition(
-      pos => {
+      async pos => {
         const center = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         mapInstance.current?.setCenter(center)
         mapInstance.current?.setZoom(14)
         setSelected(null)
-        setQuery('Mein Standort')
+
+        // Reverse geocode so the field shows a real address
+        try {
+          const res = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${center.lat},${center.lng}&language=de&key=${GOOGLE_MAPS_API_KEY}`
+          )
+          const data = await res.json()
+          const r = data.results?.[0]
+          if (r) {
+            const get = (t: string) =>
+              r.address_components?.find((x: any) => x.types.includes(t))?.long_name || ''
+            const street = [get('route'), get('street_number')].filter(Boolean).join(' ')
+            const zip = get('postal_code')
+            const city = get('locality') || get('administrative_area_level_1')
+            const pretty = street && city
+              ? `${street}, ${zip} ${city}`.replace(/\s+/g, ' ').trim()
+              : r.formatted_address.replace(/,\s*(Deutschland|Germany)\s*$/i, '')
+            setQuery(pretty)
+            await saveRecentAddress(pretty, center)
+            getRecentAddresses(4).then(x => { setRecents(x.addresses); setIsHistory(x.isHistory) })
+          } else {
+            setQuery('Mein Standort')
+          }
+        } catch {
+          setQuery('Mein Standort')
+        }
+
         searchNearby(center)
         setLocating(false)
         // Add user location marker
@@ -264,6 +304,14 @@ function MaerkteContent() {
       () => { setLocating(false); toast.error('Standortzugriff verweigert') }
     )
   }
+
+  // Recent addresses
+  useEffect(() => {
+    getRecentAddresses(4).then(({ addresses, isHistory }) => {
+      setRecents(addresses)
+      setIsHistory(isHistory)
+    })
+  }, [])
 
   useEffect(() => {
     const loadShoppers = async () => {
@@ -344,19 +392,76 @@ function MaerkteContent() {
               </button>
 
               {/* Address search */}
-              <div className="flex-1 flex items-center gap-2 border-2 border-gray-100 rounded-2xl px-4 py-3 focus-within:border-red transition-colors bg-white">
-                <Search size={17} className="text-gray-400 flex-shrink-0" />
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && searchAddress()}
-                  placeholder="Stadt oder Adresse — z.B. Berlin, München, Hamburg..."
-                  className="flex-1 outline-none text-sm bg-transparent"
-                />
+              <div className="flex-1 relative">
+                <div className="flex items-center gap-2 border-2 border-gray-100 rounded-2xl px-4 py-3 focus-within:border-red transition-colors bg-white">
+                  <Search size={17} className="text-gray-400 flex-shrink-0" />
+                  <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onFocus={() => setShowRecents(true)}
+                    onBlur={() => setTimeout(() => setShowRecents(false), 180)}
+                    onKeyDown={e => e.key === 'Enter' && searchAddress()}
+                    placeholder="Stadt oder Adresse — z.B. Berlin, München, Hamburg..."
+                    className="flex-1 outline-none text-sm bg-transparent"
+                  />
+                  {query && (
+                    <button onMouseDown={e => { e.preventDefault(); setQuery('') }}>
+                      <X size={15} className="text-gray-300 hover:text-gray-500" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Recent addresses dropdown */}
+                {showRecents && recents.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-30">
+                    <div className="flex items-center gap-1.5 px-4 pt-3 pb-1.5">
+                      {isHistory && <Clock size={11} className="text-gray-300" />}
+                      <span className="text-[10px] font-black text-gray-300 uppercase tracking-wide">
+                        {isHistory ? 'Zuletzt verwendet' : 'Beispieladressen'}
+                      </span>
+                    </div>
+                    {recents.map(r => (
+                      <div
+                        key={r.fullText}
+                        onMouseDown={e => {
+                          e.preventDefault()
+                          setQuery(r.fullText)
+                          searchAddress(r.fullText)
+                        }}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-red/10 flex items-center justify-center flex-shrink-0">
+                          {isHistory
+                            ? <Clock size={13} className="text-red" />
+                            : <MapPin size={13} className="text-red" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-bold text-gray-900 truncate">{r.label}</div>
+                          {r.subLabel && (
+                            <div className="text-xs text-gray-400 truncate">{r.subLabel}</div>
+                          )}
+                        </div>
+                        {isHistory && (
+                          <button
+                            onMouseDown={async e => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              await removeRecentAddress(r.fullText)
+                              const x = await getRecentAddresses(4)
+                              setRecents(x.addresses)
+                              setIsHistory(x.isHistory)
+                            }}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-200 hover:text-red hover:bg-red/10 transition-all flex-shrink-0"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <button onClick={searchAddress} disabled={searching} className="btn-red px-5 text-sm flex-shrink-0">
-                {searching ? <Loader2 size={16} className="animate-spin" /> : 'Suchen'}
-              </button>
+              <button onClick={() => searchAddress()} disabled={searching} className="btn-red px-5 text-sm flex-shrink-0">              </button>
             </div>
           </div>
         </div>
