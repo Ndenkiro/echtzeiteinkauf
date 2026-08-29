@@ -1,51 +1,110 @@
 'use client'
 // components/shop/hero.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, ArrowRight, Navigation, Loader2 } from 'lucide-react'
+import { MapPin, ArrowRight, Navigation, Loader2, Clock, X, CheckCircle2 } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
 import { toast } from 'sonner'
+import {
+  getRecentAddresses, saveRecentAddress, removeRecentAddress,
+  type RecentAddress,
+} from '@/lib/recent-addresses'
 
-const SUGGESTIONS = [
-  { label: 'Nürnberger Str. 134', sub: '90762 Fürth' },
-  { label: 'Königstraße 10',      sub: '90402 Nürnberg' },
-  { label: 'Hauptmarkt 1',        sub: '90402 Nürnberg' },
-]
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU4Z'
 
 const FLOATING_ITEMS = [
-  { emoji: '🥦', top: '10%', left: '2%',  size: 46, delay: '0s',   rot: -8  },
-  { emoji: '🍅', top: '78%', left: '1%',  size: 40, delay: '0.6s', rot: 10  },
-  { emoji: '🥛', top: '12%', left: '94%', size: 42, delay: '0.3s', rot: 6   },
-  { emoji: '🧀', top: '80%', left: '95%', size: 38, delay: '1.2s', rot: 14  },
+  { emoji: '🥦', top: '10%', left: '2%',  size: 46, delay: '0s',   rot: -8 },
+  { emoji: '🍅', top: '78%', left: '1%',  size: 40, delay: '0.6s', rot: 10 },
+  { emoji: '🥛', top: '12%', left: '94%', size: 42, delay: '0.3s', rot: 6 },
+  { emoji: '🧀', top: '80%', left: '95%', size: 38, delay: '1.2s', rot: 14 },
 ]
 
 export function Hero() {
   const [addr, setAddr] = useState('')
   const [locating, setLocating] = useState(false)
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [recents, setRecents] = useState<RecentAddress[]>([])
+  const [isHistory, setIsHistory] = useState(false)
+  const [loadingRecents, setLoadingRecents] = useState(true)
+
   const setAddress = useCart(s => s.setAddress)
   const router = useRouter()
 
-  const go = (address: string) => {
-    if (!address.trim()) { toast.error('Bitte Adresse eingeben'); return }
-    setAddress(address)
-    router.push(`/maerkte?q=${encodeURIComponent(address)}`)
+  useEffect(() => {
+    getRecentAddresses(3).then(({ addresses, isHistory }) => {
+      setRecents(addresses)
+      setIsHistory(isHistory)
+      setLoadingRecents(false)
+    })
+  }, [])
+
+  const go = async (address: string, c?: { lat: number; lng: number }) => {
+    const value = address.trim()
+    if (!value) { toast.error('Bitte Adresse eingeben'); return }
+
+    setAddress(value)
+    await saveRecentAddress(value, c ?? coords ?? undefined)
+
+    const target = (c ?? coords)
+      ? `/maerkte?lat=${(c ?? coords)!.lat}&lng=${(c ?? coords)!.lng}&q=${encodeURIComponent(value)}`
+      : `/maerkte?q=${encodeURIComponent(value)}`
+    router.push(target)
   }
 
+  // Geolocation → reverse geocode → fill the input
   const useMyLocation = () => {
     if (!navigator.geolocation) { toast.error('Standort nicht verfügbar'); return }
     setLocating(true)
+
     navigator.geolocation.getCurrentPosition(
-      pos => {
+      async pos => {
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setCoords(c)
+
+        try {
+          const res = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${c.lat},${c.lng}&language=de&key=${GOOGLE_MAPS_API_KEY}`
+          )
+          const data = await res.json()
+          const result = data.results?.[0]
+
+          if (result) {
+            const get = (type: string) =>
+              result.address_components?.find((x: any) => x.types.includes(type))?.long_name || ''
+
+            const street = [get('route'), get('street_number')].filter(Boolean).join(' ')
+            const zip    = get('postal_code')
+            const city   = get('locality') || get('administrative_area_level_1')
+
+            const composed = street && city
+              ? `${street}, ${zip} ${city}`.replace(/\s+/g, ' ').trim()
+              : result.formatted_address.replace(/,\s*(Deutschland|Germany)\s*$/i, '')
+
+            setAddr(composed)
+            toast.success('Adresse gefunden')
+          } else {
+            setAddr(`${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`)
+            toast.success('Standort übernommen')
+          }
+        } catch {
+          setAddr(`${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`)
+        }
         setLocating(false)
-        setAddress('Mein Standort')
-        // Pass coordinates directly
-        router.push(`/maerkte?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`)
       },
       () => {
         setLocating(false)
         toast.error('Standortzugriff verweigert. Bitte in den Browser-Einstellungen erlauben.')
-      }
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
     )
+  }
+
+  const deleteRecent = async (e: React.MouseEvent, fullText: string) => {
+    e.stopPropagation()
+    await removeRecentAddress(fullText)
+    const { addresses, isHistory } = await getRecentAddresses(3)
+    setRecents(addresses)
+    setIsHistory(isHistory)
   }
 
   return (
@@ -85,11 +144,11 @@ export function Hero() {
             Neu in Deutschland
           </div>
           <h1 className="text-[2.3rem] md:text-[3rem] font-black text-white leading-[1.02] tracking-[-0.02em] mb-4">
-            Einkäufe<br/>
+            Einkäufe<br />
             <span className="relative inline-block px-1">
               <span className="absolute inset-0 bg-orange -z-10 rounded-md" aria-hidden="true" />
               <span className="relative text-black">in 2 Stunden</span>
-            </span><br/>
+            </span><br />
             geliefert
           </h1>
           <p className="text-white/70 text-base leading-relaxed mb-7 max-w-md font-medium">
@@ -105,19 +164,23 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Right: Address card */}
+        {/* Right: address card */}
         <div className="bg-white rounded-[28px] p-7 shadow-[0_24px_64px_rgba(0,0,0,0.45)] relative">
           <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full bg-orange flex items-center justify-center text-xl shadow-lg rotate-12">🛒</div>
-          <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4">📍 Geben Sie Ihre Adresse ein</p>
+          <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4">
+            📍 Geben Sie Ihre Adresse ein
+          </p>
 
-          {/* Standort button */}
+          {/* Geolocation */}
           <button
             onClick={useMyLocation}
             disabled={locating}
             className="w-full flex items-center gap-3 border-2 border-red/20 bg-red/5 text-red rounded-2xl px-4 py-3 mb-4 font-bold text-sm hover:bg-red hover:text-white hover:border-red transition-all disabled:opacity-60"
           >
-            {locating ? <Loader2 size={18} className="animate-spin flex-shrink-0" /> : <Navigation size={18} className="flex-shrink-0" />}
-            <span>{locating ? 'Standort wird ermittelt...' : 'Meinen Standort verwenden'}</span>
+            {locating
+              ? <Loader2 size={18} className="animate-spin flex-shrink-0" />
+              : <Navigation size={18} className="flex-shrink-0" />}
+            <span>{locating ? 'Standort wird ermittelt…' : 'Meinen Standort verwenden'}</span>
           </button>
 
           <div className="flex items-center gap-3 mb-4">
@@ -126,41 +189,82 @@ export function Hero() {
             <div className="flex-1 h-px bg-gray-100" />
           </div>
 
-          <div className="flex items-center gap-2 border-2 border-gray-100 bg-gray-50 rounded-2xl px-4 py-3.5 mb-4 focus-within:border-red focus-within:bg-white transition-all">
-            <MapPin size={18} className="text-gray-400 flex-shrink-0" />
+          {/* Input */}
+          <div className={`flex items-center gap-2 border-2 rounded-2xl px-4 py-3.5 mb-2 transition-all ${
+            coords ? 'border-green-400 bg-green-50/50' : 'border-gray-100 bg-gray-50 focus-within:border-red focus-within:bg-white'
+          }`}>
+            <MapPin size={18} className={coords ? 'text-green-600 flex-shrink-0' : 'text-gray-400 flex-shrink-0'} />
             <input
               type="text"
               value={addr}
-              onChange={e => setAddr(e.target.value)}
+              onChange={e => { setAddr(e.target.value); setCoords(null) }}
               onKeyDown={e => e.key === 'Enter' && go(addr)}
-              placeholder="Straße, Hausnummer, PLZ..."
+              placeholder="Straße, Hausnummer, PLZ…"
               className="flex-1 outline-none text-sm bg-transparent text-gray-900 placeholder-gray-400 font-medium"
             />
+            {addr && (
+              <button onClick={() => { setAddr(''); setCoords(null) }}>
+                <X size={15} className="text-gray-300 hover:text-gray-500" />
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-col gap-2 mb-5">
-            {SUGGESTIONS.map(s => (
-              <button
-                key={s.label}
-                onClick={() => go(`${s.label}, ${s.sub}`)}
-                className="flex items-center gap-3 px-3.5 py-3 border border-gray-100 rounded-2xl text-left hover:border-red hover:bg-red/[0.04] transition-all group"
-              >
-                <div className="w-9 h-9 rounded-xl bg-red/10 flex items-center justify-center flex-shrink-0 group-hover:bg-red group-hover:scale-110 transition-all">
-                  <MapPin size={14} className="text-red group-hover:text-white transition-colors" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-gray-900">{s.label}</div>
-                  <div className="text-xs text-gray-400">{s.sub}</div>
-                </div>
-                <ArrowRight size={14} className="text-gray-300 group-hover:text-red group-hover:translate-x-1 ml-auto transition-all" />
-              </button>
-            ))}
-          </div>
+          {coords && (
+            <p className="text-xs text-green-600 font-bold mb-4 flex items-center gap-1">
+              <CheckCircle2 size={13} /> Standort erkannt
+            </p>
+          )}
+          {!coords && <div className="mb-4" />}
+
+          {/* Recent / suggested addresses */}
+          {!loadingRecents && recents.length > 0 && (
+            <>
+              <div className="flex items-center gap-1.5 mb-2">
+                {isHistory && <Clock size={11} className="text-gray-300" />}
+                <span className="text-[10px] font-black text-gray-300 uppercase tracking-wide">
+                  {isHistory ? 'Zuletzt verwendet' : 'Beispieladressen'}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2 mb-5">
+                {recents.map(r => (
+                  <div
+                    key={r.fullText}
+                    onClick={() => go(r.fullText, r.lat && r.lng ? { lat: r.lat, lng: r.lng } : undefined)}
+                    className="flex items-center gap-3 px-3.5 py-3 border border-gray-100 rounded-2xl text-left hover:border-red hover:bg-red/[0.04] transition-all group cursor-pointer"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-red/10 flex items-center justify-center flex-shrink-0 group-hover:bg-red group-hover:scale-110 transition-all">
+                      {isHistory
+                        ? <Clock size={14} className="text-red group-hover:text-white transition-colors" />
+                        : <MapPin size={14} className="text-red group-hover:text-white transition-colors" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold text-gray-900 truncate">{r.label}</div>
+                      {r.subLabel && (
+                        <div className="text-xs text-gray-400 truncate">{r.subLabel}</div>
+                      )}
+                    </div>
+                    {isHistory ? (
+                      <button
+                        onClick={e => deleteRecent(e, r.fullText)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-200 hover:text-red hover:bg-red/10 transition-all flex-shrink-0"
+                        title="Entfernen"
+                      >
+                        <X size={13} />
+                      </button>
+                    ) : (
+                      <ArrowRight size={14} className="text-gray-300 group-hover:text-red group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           <button
             onClick={() => go(addr)}
-            disabled={addr.length < 4}
-            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+            disabled={addr.trim().length < 4}
+            className="w-full bg-red text-white font-black rounded-2xl px-5 py-4 text-base flex items-center justify-center gap-2 transition-all hover:bg-red-dark hover:shadow-[0_8px_24px_rgba(227,6,19,0.35)] active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:shadow-none"
           >
             Märkte in meiner Nähe anzeigen <ArrowRight size={18} />
           </button>
@@ -172,7 +276,7 @@ export function Hero() {
           src="/hero-delivery.jpg"
           alt="Echtzeiteinkauf Lieferung"
           className="w-full h-full object-cover object-center"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent pointer-events-none" />
       </div>
