@@ -10,7 +10,7 @@ import {
   type RecentAddress,
 } from '@/lib/recent-addresses'
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU4Z'
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDExSOafkqdChm7ZkqVYAVD2W271a-mU2I'
 
 const FLOATING_ITEMS = [
   { emoji: '🥦', top: '10%', left: '2%',  size: 46, delay: '0s',   rot: -8 },
