@@ -13,23 +13,84 @@ const OPEN_PRICES = 'https://prices.openfoodfacts.org/api/v1/prices'
 // Open Food Facts asks every client to identify itself
 const UA = 'Echtzeiteinkauf/1.0 (https://echtzeiteinkauf.com; kontakt@echtzeiteinkauf.de)'
 
-// OFF category tags → our German shelf names
-const CATEGORY_MAP: { match: string[]; label: string }[] = [
-  { match: ['fruits', 'vegetables', 'obst', 'gemüse', 'salad'],        label: 'Obst & Gemüse' },
-  { match: ['dairy', 'milk', 'cheese', 'yogurt', 'butter', 'eggs'],    label: 'Milch & Eier' },
-  { match: ['bread', 'bakery', 'brot', 'pastries'],                    label: 'Brot & Gebäck' },
-  { match: ['meat', 'fish', 'seafood', 'sausage', 'poultry'],          label: 'Fleisch & Fisch' },
-  { match: ['beverages', 'drinks', 'water', 'juice', 'coffee', 'tea'], label: 'Getränke' },
-  { match: ['snacks', 'chocolate', 'candies', 'biscuits', 'sweet'],    label: 'Süßes & Snacks' },
-  { match: ['frozen', 'tiefkühl'],                                     label: 'Tiefkühl' },
-  { match: ['pasta', 'rice', 'flour', 'sugar', 'oil', 'canned'],       label: 'Grundnahrung' },
+// OFF tags and product names → our German shelf names.
+// Order matters: the most specific rule wins.
+type Rule = { label: string; tags: string[]; words?: string[] }
+
+const RULES: Rule[] = [
+  {
+    label: 'Getränke',
+    tags: ['beverages', 'waters', 'juices', 'sodas', 'coffees', 'teas', 'beers', 'wines', 'spirits'],
+    words: ['wasser', 'saft', 'cola', 'limonade', 'bier', 'wein', 'kaffee', 'tee', 'schorle', 'drink', 'smoothie'],
+  },
+  {
+    label: 'Tiefkühl',
+    tags: ['frozen-foods', 'frozen', 'ice-cream', 'frozen-desserts'],
+    words: ['tiefkühl', 'tk-', 'eiscreme', 'gefrier'],
+  },
+  {
+    label: 'Brot & Gebäck',
+    tags: ['breads', 'bread', 'bakery-products', 'viennoiserie', 'crispbreads', 'toasts', 'rolls', 'baguettes'],
+    words: ['brot', 'brötchen', 'toast', 'baguette', 'croissant', 'semmel', 'knäcke', 'zwieback', 'brezel'],
+  },
+  {
+    label: 'Milch & Eier',
+    tags: ['dairies', 'dairy', 'milks', 'cheeses', 'yogurts', 'butters', 'creams', 'eggs', 'fermented-milk-products'],
+    words: ['milch', 'käse', 'joghurt', 'quark', 'butter', 'sahne', 'eier', 'schmand', 'frischkäse', 'skyr'],
+  },
+  {
+    label: 'Fleisch & Fisch',
+    tags: ['meats', 'meat', 'poultry', 'sausages', 'hams', 'fishes', 'seafood', 'charcuterie', 'salamis'],
+    words: ['fleisch', 'hähnchen', 'hackfleisch', 'wurst', 'schinken', 'salami', 'lachs', 'fisch', 'thunfisch', 'schnitzel', 'gulasch'],
+  },
+  {
+    label: 'Obst & Gemüse',
+    tags: ['fruits', 'vegetables', 'fresh-vegetables', 'fresh-fruits', 'salads', 'legumes', 'herbs', 'potatoes'],
+    words: ['apfel', 'äpfel', 'banane', 'tomate', 'gurke', 'salat', 'kartoffel', 'zwiebel', 'paprika', 'karotte',
+            'möhre', 'zitrone', 'orange', 'birne', 'traube', 'beere', 'avocado', 'brokkoli', 'spinat'],
+  },
+  {
+    label: 'Süßes & Snacks',
+    tags: ['snacks', 'sweet-snacks', 'salty-snacks', 'chocolates', 'biscuits', 'candies', 'chips-and-fries',
+           'confectioneries', 'nuts', 'cakes'],
+    words: ['schokolade', 'keks', 'chips', 'bonbon', 'gummibär', 'riegel', 'nuss', 'mandel', 'waffel', 'kuchen', 'praline'],
+  },
+  {
+    label: 'Grundnahrung',
+    tags: ['cereals-and-potatoes', 'pastas', 'rices', 'flours', 'sugars', 'oils', 'vinegars', 'sauces',
+           'canned-foods', 'condiments', 'spices', 'breakfast-cereals', 'honeys', 'jams'],
+    words: ['nudel', 'pasta', 'spaghetti', 'reis', 'mehl', 'zucker', 'öl', 'essig', 'salz', 'pfeffer',
+            'gewürz', 'soße', 'sauce', 'ketchup', 'senf', 'müsli', 'haferflocken', 'honig', 'marmelade',
+            'konserve', 'dose', 'linsen', 'bohnen'],
+  },
+  {
+    label: 'Drogerie',
+    tags: ['non-food-products', 'hygiene', 'beauty', 'cleaning', 'baby-foods'],
+    words: ['shampoo', 'duschgel', 'zahnpasta', 'seife', 'waschmittel', 'reiniger', 'windel', 'deo'],
+  },
 ]
 
-function mapCategory(tags: string[] = []): string {
-  const joined = tags.join(' ').toLowerCase()
-  for (const c of CATEGORY_MAP) {
-    if (c.match.some(m => joined.includes(m))) return c.label
+function mapCategory(tags: string[] = [], name = ''): string {
+  // Strip the language prefix: "en:breads" → "breads"
+  const clean = tags.map(t => t.replace(/^[a-z]{2}:/, '').toLowerCase())
+  const lowerName = name.toLowerCase()
+
+  // 1. Exact tag match — most reliable
+  for (const rule of RULES) {
+    if (rule.tags.some(t => clean.includes(t))) return rule.label
   }
+
+  // 2. Partial tag match
+  const joined = clean.join(' ')
+  for (const rule of RULES) {
+    if (rule.tags.some(t => joined.includes(t))) return rule.label
+  }
+
+  // 3. Fall back to the product name
+  for (const rule of RULES) {
+    if (rule.words?.some(w => lowerName.includes(w))) return rule.label
+  }
+
   return 'Sonstiges'
 }
 
@@ -137,7 +198,7 @@ export async function POST(request: Request) {
             off_id: p.code,
             name,
             brand: (p.brands || '').split(',')[0]?.trim() || null,
-            category: mapCategory(p.categories_tags),
+            category: mapCategory(p.categories_tags, name),
             unit: cleanUnit(p),
             price,
             price_source: priceSource,
@@ -192,7 +253,7 @@ export async function GET(request: Request) {
         name: p.product_name_de || p.product_name,
         brand: (p.brands || '').split(',')[0]?.trim() || null,
         unit: cleanUnit(p),
-        category: mapCategory(p.categories_tags),
+        category: mapCategory(p.categories_tags, p.product_name_de || p.product_name || ''),
         image_url: p.image_front_url || p.image_url || null,
         image_small_url: p.image_front_small_url || null,
         nutriscore: p.nutriscore_grade || null,
