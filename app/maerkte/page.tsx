@@ -80,6 +80,7 @@ function MaerkteContent() {
   const [isHistory, setIsHistory] = useState(false)
   const [showRecents, setShowRecents] = useState(false)
   const [activeCat, setActiveCat] = useState<CategoryId>('food')
+  const [resolving, setResolving] = useState(false)
   const lastCenter = useRef<{ lat: number; lng: number } | null>(null)
 
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
@@ -387,6 +388,35 @@ function MaerkteContent() {
     }
   }, [selected?.placeId])
 
+  // Turn a Places result into a real store, then open its catalogue
+  const openStore = async (store: FoundStore) => {
+    setResolving(true)
+    try {
+      const res = await fetch('/api/stores/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placeId: store.placeId,
+          name: store.name,
+          address: store.address,
+          lat: store.lat,
+          lng: store.lng,
+          category: store.category,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Fehler')
+
+      if (data.created && data.products_copied === 0) {
+        toast('Dieser Markt ist neu — der Katalog wird noch aufgebaut.', { icon: 'ℹ️' })
+      }
+      router.push(`/markt/${data.slug}`)
+    } catch (e: any) {
+      toast.error('Markt konnte nicht geöffnet werden')
+      setResolving(false)
+    }
+  }
+
   const switchCategory = (catId: CategoryId) => {
     setActiveCat(catId)
     setSelected(null)
@@ -609,8 +639,14 @@ function MaerkteContent() {
                     <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
                       <Clock size={13} /> Lieferung in ca. 2 Stunden
                     </div>
-                    <button onClick={() => router.push(`/markt/${selected.partner!.slug}`)} className="btn-red w-full py-3.5">
-                      Jetzt einkaufen <ArrowRight size={16} />
+                    <button
+                      onClick={() => openStore(selected)}
+                      disabled={resolving}
+                      className="btn-red w-full py-3.5"
+                    >
+                      {resolving
+                        ? <><Loader2 size={16} className="animate-spin" /> Markt wird geöffnet…</>
+                        : <>Jetzt einkaufen <ArrowRight size={16} /></>}
                     </button>
                   </>
                 ) : (
