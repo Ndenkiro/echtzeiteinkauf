@@ -6,6 +6,21 @@ import { Search, Plus, Minus, ShoppingCart, Package, Leaf } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
 import { toast } from 'sonner'
 
+// Soft background tint per shelf, so emoji tiles look intentional
+const SHELF_STYLE: Record<string, { tint: string; emoji: string }> = {
+  'Obst & Gemüse':   { tint: '#F0FDF4', emoji: '🥬' },
+  'Brot & Gebäck':   { tint: '#FEF3C7', emoji: '🍞' },
+  'Milch & Eier':    { tint: '#EFF6FF', emoji: '🥛' },
+  'Fleisch & Fisch': { tint: '#FEF2F2', emoji: '🥩' },
+  'Grundnahrung':    { tint: '#FEFCE8', emoji: '🥫' },
+  'Getränke':        { tint: '#ECFEFF', emoji: '🥤' },
+  'Süßes & Snacks':  { tint: '#FDF4FF', emoji: '🍫' },
+  'Tiefkühl':        { tint: '#F0F9FF', emoji: '🧊' },
+  'Drogerie':        { tint: '#F5F3FF', emoji: '🧴' },
+}
+const shelfTint  = (c?: string) => SHELF_STYLE[c || '']?.tint  ?? '#F8FAFC'
+const shelfEmoji = (c?: string) => SHELF_STYLE[c || '']?.emoji ?? '🛒'
+
 type Props = { store: any; products: any[]; categories?: string[] }
 
 export function ProductCatalog({ store, products, categories: catsFromServer }: Props) {
@@ -103,10 +118,12 @@ export function ProductCatalog({ store, products, categories: catsFromServer }: 
               return (
                 <div key={p.id}
                   className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:border-gray-200 hover:shadow-sm transition-all">
-                  {/* Photo */}
-                  <div className="relative aspect-square bg-white p-3 flex items-center justify-center">
+                  {/* Photo or emoji tile */}
+                  <div
+                    className="relative aspect-square flex items-center justify-center p-3"
+                    style={img ? undefined : { background: shelfTint(p.category) }}
+                  >
                     {img ? (
-                      // Plain <img>: Open Food Facts URLs need no Next.js optimisation
                       <img
                         src={img}
                         alt={p.name}
@@ -115,12 +132,18 @@ export function ProductCatalog({ store, products, categories: catsFromServer }: 
                         onError={e => {
                           const el = e.target as HTMLImageElement
                           el.style.display = 'none'
-                          el.parentElement?.querySelector('.fallback')?.classList.remove('hidden')
+                          const fb = el.parentElement?.querySelector('.fallback') as HTMLElement
+                          if (fb) {
+                            fb.classList.remove('hidden')
+                            el.parentElement!.style.background = shelfTint(p.category)
+                          }
                         }}
                       />
                     ) : null}
-                    <div className={`fallback absolute inset-0 flex items-center justify-center text-4xl ${img ? 'hidden' : ''}`}>
-                      🛒
+                    <div className={`fallback absolute inset-0 flex items-center justify-center ${img ? 'hidden' : ''}`}>
+                      <span className="text-5xl drop-shadow-sm select-none">
+                        {p.emoji || shelfEmoji(p.category)}
+                      </span>
                     </div>
 
                     {p.attributes?.organic && (
