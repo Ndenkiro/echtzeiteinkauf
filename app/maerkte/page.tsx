@@ -21,14 +21,14 @@ const SUPABASE_URL = 'https://wpxpgszzzfhhsaunolyq.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweHBnc3p6emZoaHNhdW5vbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Mzg5ODQsImV4cCI6MjA5NzAxNDk4NH0.8_DVpLNwItAlkn_gL9a4dn-lZ00I8iifX2Cb9N_W-4U'
 
 const PARTNER_CHAINS: Record<string, { color: string; slug: string }> = {
-  'lidl':       { color: '#0050AA', slug: 'lidl-nuernberg' },
-  'aldi':       { color: '#00457C', slug: 'aldi-sued-nuernberg' },
-  'rewe':       { color: '#CC071E', slug: 'rewe-nuernberg' },
-  'edeka':      { color: '#FFD500', slug: 'edeka-nuernberg' },
-  'penny':      { color: '#CD1414', slug: 'penny-nuernberg' },
-  'kaufland':   { color: '#E10915', slug: 'kaufland-nuernberg' },
-  'netto':      { color: '#FFE500', slug: 'netto-nuernberg' },
-  'mediamarkt': { color: '#DF0000', slug: 'mediamarkt-nuernberg' },
+  'lidl':       { color: '#0050AA', slug: 'lidl' },
+  'aldi':       { color: '#00457C', slug: 'aldi-sued' },
+  'rewe':       { color: '#CC071E', slug: 'rewe' },
+  'edeka':      { color: '#FFD500', slug: 'edeka' },
+  'penny':      { color: '#CD1414', slug: 'penny' },
+  'kaufland':   { color: '#E10915', slug: 'kaufland' },
+  'netto':      { color: '#FFE500', slug: 'netto' },
+  'mediamarkt': { color: '#DF0000', slug: 'mediamarkt' },
 }
 
 // Haversine distance in km
