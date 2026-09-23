@@ -6,7 +6,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, BarChart2, Bike, Users,
-  ShoppingBag, Tag, UserCog, LogOut, Home
+  ShoppingBag, Tag, UserCog, LogOut, Home,
+  Store, Download
 } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -17,11 +18,16 @@ const NAV = [
   { path: '',              label: 'Dashboard',    icon: LayoutDashboard },
   { path: '/statistiken',  label: 'Statistiken',  icon: BarChart2 },
   { path: '/shoppers',     label: 'Shopper',      icon: Bike },
+  { path: '/haendler',     label: 'Händler',      icon: Store },
   { path: '/kunden',       label: 'Kunden',       icon: Users },
   { path: '/bestellungen', label: 'Bestellungen', icon: ShoppingBag },
+  { path: '/import',       label: 'Katalog',      icon: Download },
   { path: '/promo',        label: 'Aktionscodes', icon: Tag },
   { path: '/users',        label: 'Benutzer',     icon: UserCog },
 ]
+
+// The five shown in the mobile bottom bar
+const MOBILE_NAV = [NAV[0], NAV[2], NAV[3], NAV[5], NAV[8]]
 
 export function AdminSidebar({ name, email, role }: {
   name: string; email: string; role?: string
@@ -34,11 +40,9 @@ export function AdminSidebar({ name, email, role }: {
     setIsSubdomain(window.location.hostname.startsWith('admin.'))
   }, [])
 
-  // Build href depending on where we are
   const hrefFor = (path: string) =>
     isSubdomain ? (path || '/') : `/admin${path}`
 
-  // Active check — pathname is always the rewritten /admin/... form
   const isActive = (path: string) => {
     const full = `/admin${path}`
     return path === '' ? pathname === '/admin' : pathname === full
@@ -126,9 +130,9 @@ export function AdminSidebar({ name, email, role }: {
         </button>
       </div>
 
-      {/* Mobile bottom nav — 5 most used */}
+      {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0A0A0A] z-40 flex">
-        {NAV.slice(0, 5).map(item => {
+        {MOBILE_NAV.map(item => {
           const active = isActive(item.path)
           const Icon = item.icon
           return (
