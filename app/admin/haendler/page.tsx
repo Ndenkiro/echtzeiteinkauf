@@ -1,7 +1,7 @@
 'use client'
 // app/haendler/page.tsx — merchant landing + application form
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createBrowserClient } from '@supabase/ssr'
@@ -27,7 +27,7 @@ const BENEFITS = [
     text: 'Unsere Shopper holen die Ware bei Ihnen ab und bringen sie zum Kunden.' },
 ]
 
-export default function HaendlerPage() {
+function HaendlerContent() {
   const [step, setStep] = useState<'intro' | 'form' | 'done'>('intro')
   const [user, setUser] = useState<any>(null)
   const [existing, setExisting] = useState<any>(null)
@@ -43,6 +43,7 @@ export default function HaendlerPage() {
   })
 
   const router = useRouter()
+  const params = useSearchParams()
   const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON)
 
   useEffect(() => {
@@ -61,6 +62,13 @@ export default function HaendlerPage() {
         }
         const { data: ctx } = await supabase.rpc('get_my_merchant_context')
         if (ctx?.[0]) setExisting(ctx[0])
+
+        // Coming straight from sign-up: prefill and open the form
+        const fromSignup = params.get('betrieb')
+        if (fromSignup && !ctx?.[0]) {
+          setForm(f => ({ ...f, business_name: fromSignup }))
+          setStep('form')
+        }
       }
       setLoading(false)
     })()
@@ -434,5 +442,18 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
         className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-orange transition-colors"
       />
     </div>
+  )
+}
+
+
+export default function HaendlerPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-orange border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <HaendlerContent />
+    </Suspense>
   )
 }
