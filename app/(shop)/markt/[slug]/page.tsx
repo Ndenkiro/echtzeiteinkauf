@@ -27,15 +27,21 @@ export default async function StorePage({ params }: Props) {
 
   if (!store) notFound()
 
+  // Only products a customer can actually judge and buy:
+  // complete means name + price + photo-or-emoji + unit
   const { data: products } = await supabase
     .from('products')
     .select('*')
     .eq('store_id', store.id)
     .eq('in_stock', true)
+    .eq('is_complete', true)
     .order('category')
+    .order('sort_order')
     .order('name')
 
-  const categories = Array.from(new Set((products ?? []).map(p => p.category).filter(Boolean) as string[]))
+  const categories = Array.from(
+    new Set((products ?? []).map(p => p.category).filter(Boolean) as string[])
+  )
 
   return (
     <>
