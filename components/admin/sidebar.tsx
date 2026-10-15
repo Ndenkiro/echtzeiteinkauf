@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, BarChart2, Bike, Users,
   ShoppingBag, Tag, UserCog, LogOut, Home,
-  Store, Download
+  Store, Download, FileSpreadsheet
 } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -24,6 +24,7 @@ const NAV = [
   { path: '/import',       label: 'Katalog',      icon: Download },
   { path: '/promo',        label: 'Aktionscodes', icon: Tag },
   { path: '/users',        label: 'Benutzer',     icon: UserCog },
+  { path: '/import-csv',   label: 'Datei-Import', icon: FileSpreadsheet },
 ]
 
 // The five shown in the mobile bottom bar
