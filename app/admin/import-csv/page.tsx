@@ -18,26 +18,67 @@ const SHELVES = [
   'Haushalt','Elektronik','Werkzeug','Mode','Garten','Spielzeug','Sonstiges',
 ]
 
-/** German search terms → our shelves */
+/** Exact category names used by German retailers → our shelves */
+const EXACT_SHELF: Record<string, string> = {
+  // Getränke
+  'kaffee ganze bohnen': 'Getränke', 'kaffee gemahlen / instant': 'Getränke',
+  'kaffeekapseln': 'Getränke', 'kaffeepads': 'Getränke', 'filter': 'Getränke',
+  'tee in beutel & lose': 'Getränke', 'cappuccino-kakao': 'Getränke',
+  'exklusiv: coffeeb': 'Getränke',
+
+  // Milch & Eier
+  'milch, sahne, -alternativen': 'Milch & Eier', 'käse & -cremes': 'Milch & Eier',
+  'margarine & butterschmalz': 'Milch & Eier', 'pudding-dessert': 'Milch & Eier',
+
+  // Brot & Gebäck
+  'brot-brötchen': 'Brot & Gebäck', 'knäckebrot-zwieback-waffeln': 'Brot & Gebäck',
+  'fertige kuchen': 'Brot & Gebäck',
+
+  // Fleisch & Fisch
+  'wurst & schinken': 'Fleisch & Fisch',
+
+  // Süßes & Snacks
+  'tafelschokolade': 'Süßes & Snacks', 'schoko-leckereien': 'Süßes & Snacks',
+  'schokoriegel': 'Süßes & Snacks', 'bonbons & kaugummi': 'Süßes & Snacks',
+  'fruchtgummi & lakritz': 'Süßes & Snacks', 'chips & knabbereien': 'Süßes & Snacks',
+  'gebäck-kekse-waffeln': 'Süßes & Snacks', 'nüsse & getrocknete früchte': 'Süßes & Snacks',
+  'nüsse & mehr': 'Süßes & Snacks', 'müsli- & fruchtriegel': 'Süßes & Snacks',
+
+  // Grundnahrung
+  'backmischungen': 'Grundnahrung', 'backzutaten & dekor': 'Grundnahrung',
+  'mehl-backpulver-hefe': 'Grundnahrung', 'zucker & zuckerersatz': 'Grundnahrung',
+  'müsli-cerealien': 'Grundnahrung', 'konfitüre & fruchtaufstriche': 'Grundnahrung',
+  'nuss- & schokocreme': 'Grundnahrung', 'streichcreme-aufstrich': 'Grundnahrung',
+  'honig': 'Grundnahrung', 'öle': 'Grundnahrung', 'essig': 'Grundnahrung',
+  'brühen': 'Grundnahrung', 'gewürze-kräuter': 'Grundnahrung',
+  'feinwürzmittel': 'Grundnahrung', 'salatkräuter': 'Grundnahrung',
+  'aromen-vanille': 'Grundnahrung', 'geliermittel-sahnefest': 'Grundnahrung',
+  'kuvertüre-glasur': 'Grundnahrung',
+}
+
+/** Fallback: guess from any German words in the hint or title */
 const QUERY_SHELF: { words: string[]; shelf: string }[] = [
-  { words: ['milch','käse','joghurt','quark','butter','sahne','eier'], shelf: 'Milch & Eier' },
-  { words: ['brot','brötchen','toast','backwaren'],                    shelf: 'Brot & Gebäck' },
+  { words: ['milch','käse','joghurt','quark','butter','sahne','eier','pudding','margarine'], shelf: 'Milch & Eier' },
+  { words: ['brot','brötchen','toast','backwaren','knäcke','zwieback','kuchen'], shelf: 'Brot & Gebäck' },
   { words: ['obst','gemüse','äpfel','bananen','tomaten','kartoffeln','salat'], shelf: 'Obst & Gemüse' },
-  { words: ['fleisch','hähnchen','rind','schwein','wurst','schinken','fisch'], shelf: 'Fleisch & Fisch' },
-  { words: ['nudeln','reis','mehl','zucker','salz','öl','essig','saucen','gewürze','müsli','frühstück'], shelf: 'Grundnahrung' },
-  { words: ['wasser','saft','limonade','kaffee','tee','getränke'],     shelf: 'Getränke' },
-  { words: ['schokolade','süßigkeiten','snacks','chips','eis'],        shelf: 'Süßes & Snacks' },
-  { words: ['tiefkühl','pizza'],                                        shelf: 'Tiefkühl' },
-  { words: ['shampoo','zahnpasta','körperpflege','windeln','baby','waschmittel','spülmittel','reinigungsmittel'], shelf: 'Drogerie' },
-  { words: ['küche','haushalt','aufbewahrung','dekoration','möbel','heimtextilien','lampen'], shelf: 'Haushalt' },
-  { words: ['elektronik','computer','handy','uhren'],                  shelf: 'Elektronik' },
-  { words: ['werkzeug','parkside','auto','fahrrad'],                   shelf: 'Werkzeug' },
-  { words: ['kleidung','damen','herren','schuhe','kinder','sport','koffer'], shelf: 'Mode' },
-  { words: ['garten','pflanzen','grillen','camping'],                  shelf: 'Garten' },
-  { words: ['spielzeug'],                                               shelf: 'Spielzeug' },
+  { words: ['fleisch','hähnchen','rind','schwein','wurst','schinken','fisch','salami'], shelf: 'Fleisch & Fisch' },
+  { words: ['nudeln','pasta','reis','mehl','zucker','salz','öl','essig','sauce','soße','gewürz','müsli','honig','marmelade','konfitüre','brühe','backen'], shelf: 'Grundnahrung' },
+  { words: ['wasser','saft','limonade','kaffee','tee','getränk','cola','bier','wein','kakao'], shelf: 'Getränke' },
+  { words: ['schokolade','süßigkeit','snack','chips','keks','bonbon','gummi','riegel','nuss','eis','praline'], shelf: 'Süßes & Snacks' },
+  { words: ['tiefkühl','pizza','gefrier'], shelf: 'Tiefkühl' },
+  { words: ['shampoo','zahnpasta','körperpflege','windel','baby','waschmittel','spülmittel','reinigung','hygiene'], shelf: 'Drogerie' },
+  { words: ['küche','haushalt','aufbewahrung','dekoration','möbel','lampen','textilien'], shelf: 'Haushalt' },
+  { words: ['elektronik','computer','handy','uhren','silvercrest'], shelf: 'Elektronik' },
+  { words: ['werkzeug','parkside','auto','fahrrad'], shelf: 'Werkzeug' },
+  { words: ['kleidung','damen','herren','schuhe','sport','koffer','esmara','crivit'], shelf: 'Mode' },
+  { words: ['garten','pflanzen','grillen','camping'], shelf: 'Garten' },
+  { words: ['spielzeug'], shelf: 'Spielzeug' },
 ]
 
 function guessShelf(hint: string, title: string): string {
+  const exact = EXACT_SHELF[hint.toLowerCase().trim()]
+  if (exact) return exact
+
   const h = `${hint} ${title}`.toLowerCase()
   for (const r of QUERY_SHELF) {
     if (r.words.some(w => h.includes(w))) return r.shelf
@@ -55,7 +96,7 @@ function parsePrice(raw: string): { price: number | null; original: number | nul
   // Strikethrough price
   const m2 = s.match(/(?:vorher|UVP|statt):\s*(\d+[.,]\d{2})/i)
   const original = m2 ? Number(m2[1].replace(',', '.')) : null
-  // Fallback: first number in the string
+  // Fallback: plain price like "3,99" or "12.50"
   if (price === null) {
     const m3 = s.match(/(\d+[.,]\d{2})/)
     return { price: m3 ? Number(m3[1].replace(',', '.')) : null, original }
@@ -66,8 +107,12 @@ function parsePrice(raw: string): { price: number | null; original: number | nul
 /** "…/p100380003" → "100380003" */
 function extractId(url: string): string | null {
   if (!url) return null
+  // Lidl style: /p100380003
   const m = url.match(/\/p(\d{6,})/)
-  return m ? m[1] : null
+  if (m) return m[1]
+  // Otherwise use the last path segment, which is stable per product
+  const seg = url.split('?')[0].split('/').filter(Boolean).pop()
+  return seg ? seg.replace(/\.html?$/i, '').slice(0, 120) : null
 }
 
 const FIELDS = [
