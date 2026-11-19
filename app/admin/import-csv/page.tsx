@@ -15,7 +15,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const SHELVES = [
   'Obst & Gemüse','Brot & Gebäck','Milch & Eier','Fleisch & Fisch',
   'Grundnahrung','Getränke','Süßes & Snacks','Tiefkühl','Drogerie',
-  'Haushalt','Elektronik','Werkzeug','Mode','Garten','Spielzeug','Sonstiges',
+  'Haushalt','Tierbedarf','Elektronik','Werkzeug','Mode','Garten','Spielzeug','Sonstiges',
 ]
 
 /** Exact category names used by German retailers → our shelves */
@@ -66,6 +66,23 @@ const EXACT_SHELF: Record<string, string> = {
   // Tiefkühl / Drogerie
   'tiefkuehl': 'Tiefkühl', 'tiefkühlkost': 'Tiefkühl',
   'drogerie': 'Drogerie', 'haushalt': 'Haushalt',
+
+  // Unsere eigenen Regalnamen 1:1 übernehmen (auch bei anderer Schreibweise).
+  // 'obst & gemüse', 'grundnahrung', 'drogerie' und 'haushalt' stehen schon
+  // weiter oben — hier nicht wiederholen, sonst TS1117 (doppelter Key).
+  'brot & gebäck': 'Brot & Gebäck',
+  'milch & eier': 'Milch & Eier',
+  'fleisch & fisch': 'Fleisch & Fisch',
+  'getränke': 'Getränke',
+  'süßes & snacks': 'Süßes & Snacks',
+  'tiefkühl': 'Tiefkühl',
+  'tierbedarf': 'Tierbedarf',
+  'elektronik': 'Elektronik',
+  'werkzeug': 'Werkzeug',
+  'mode': 'Mode',
+  'garten': 'Garten',
+  'spielzeug': 'Spielzeug',
+  'sonstiges': 'Sonstiges',
 }
 
 /** Fallback: guess from German words in the hint or title */
