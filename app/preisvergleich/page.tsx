@@ -216,7 +216,8 @@ export default function PreisvergleichPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* ─── Header ─── */}
-      <div className="bg-white border-b border-gray-100">
+      {/* pt-16 clears the fixed 64px navbar, otherwise the title sits under it */}
+      <div className="bg-white border-b border-gray-100 pt-16">
         <div className="max-w-6xl mx-auto px-6 py-8">
           <h1 className="text-3xl font-black text-gray-900">Preisvergleich</h1>
           <p className="text-sm text-gray-500 mt-1.5 max-w-xl">

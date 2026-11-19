@@ -2,7 +2,7 @@
 // components/layout/navbar.tsx
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingCart, Menu, X } from 'lucide-react'
+import { ShoppingCart, Menu, X, Scale } from 'lucide-react'
 import { useCart } from '@/lib/cart-store'
 import { useState, useEffect } from 'react'
 import { UserMenu } from './user-menu'
@@ -41,7 +41,17 @@ export function Navbar() {
           </Link>
 
           {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-7">
+          <div className="hidden md:flex items-center gap-5 lg:gap-7">
+            {/* Preisvergleich comes first and is a button, not a link:
+                it is the entry point of the app, not one item among others */}
+            <Link
+              href="/preisvergleich"
+              className="flex items-center gap-1.5 bg-orange text-black rounded-xl px-3.5 py-2 text-sm font-black hover:bg-orange-dark hover:text-white transition-colors whitespace-nowrap"
+            >
+              <Scale size={15} />
+              Preisvergleich
+            </Link>
+
             {LINKS.map(l => (
               <Link
                 key={l.href}
@@ -55,6 +65,15 @@ export function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Compact version for phones, where the menu above is hidden */}
+            <Link
+              href="/preisvergleich"
+              aria-label="Preisvergleich"
+              className="md:hidden flex items-center justify-center bg-orange text-black rounded-xl w-10 h-10 hover:bg-orange-dark hover:text-white transition-colors"
+            >
+              <Scale size={17} />
+            </Link>
+
             <UserMenu />
 
             <button
@@ -100,6 +119,15 @@ export function Navbar() {
             </div>
 
             <div className="flex-1 overflow-y-auto py-3">
+              <Link
+                href="/preisvergleich"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 mx-3 mb-2 px-4 py-3 rounded-xl bg-orange text-black font-black text-sm hover:bg-orange-dark hover:text-white transition-colors"
+              >
+                <Scale size={16} />
+                Preisvergleich
+              </Link>
+
               {LINKS.map(l => (
                 <Link
                   key={l.href}
