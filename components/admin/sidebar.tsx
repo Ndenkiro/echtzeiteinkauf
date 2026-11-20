@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, BarChart2, Bike, Users,
   ShoppingBag, Tag, UserCog, LogOut, Home,
-  Store, Download, FileSpreadsheet
+  Store, Download, FileSpreadsheet, Link2
 } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -25,10 +25,16 @@ const NAV = [
   { path: '/promo',        label: 'Aktionscodes', icon: Tag },
   { path: '/users',        label: 'Benutzer',     icon: UserCog },
   { path: '/import-csv',   label: 'Datei-Import', icon: FileSpreadsheet },
+  { path: '/katalog',      label: 'Zuordnung',    icon: Link2 },
 ]
 
-// The five shown in the mobile bottom bar
-const MOBILE_NAV = [NAV[0], NAV[2], NAV[3], NAV[5], NAV[8]]
+// The five shown in the mobile bottom bar.
+// Selected BY PATH, not by index — inserting an entry into NAV above
+// used to shift these silently onto the wrong pages.
+const MOBILE_PATHS = ['', '/shoppers', '/haendler', '/bestellungen', '/katalog']
+const MOBILE_NAV = MOBILE_PATHS
+  .map(p => NAV.find(n => n.path === p))
+  .filter((n): n is (typeof NAV)[number] => Boolean(n))
 
 export function AdminSidebar({ name, email, role }: {
   name: string; email: string; role?: string
