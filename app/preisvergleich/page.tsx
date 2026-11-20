@@ -191,17 +191,37 @@ export default function PreisvergleichPage() {
   const orderFrom = async (c: ChainResult) => {
     setAdding(c.chain)
     const ids = c.items.map(i => i.product_id)
-    const { data: products, error } = await supabase
-      .from('products').select('*').in('id', ids)
+
+    // The store row is needed for its coordinates: checkout refuses to
+    // proceed without them ("Markt-Koordinaten fehlen").
+    const [prodRes, storeRes] = await Promise.all([
+      supabase.from('products').select('*').in('id', ids),
+      supabase.from('stores')
+        .select('id, name, delivery_fee, lat, lng').eq('id', c.store_id).maybeSingle(),
+    ])
     setAdding(null)
-    if (error || !products?.length) { toast.error('Produkte konnten nicht geladen werden'); return }
+
+    const products = prodRes.data
+    const store    = storeRes.data as any
+    if (prodRes.error || !products?.length) {
+      toast.error('Produkte konnten nicht geladen werden'); return
+    }
+    if (store?.lat == null || store?.lng == null) {
+      toast.error(`Für ${c.store_name} fehlen die Koordinaten — bitte einen anderen Markt wählen`)
+      return
+    }
 
     cart.clearCart()
-    cart.setStore(c.store_id, c.store_name, c.delivery_fee ?? undefined)
+    // Same call shape as components/shop/product-catalog.tsx, including
+    // lat/lng. Cast because the store's type signature may list fewer
+    // parameters than it accepts.
+    ;(cart.setStore as any)(
+      c.store_id, c.store_name, c.delivery_fee ?? undefined, store.lat, store.lng,
+    )
     for (const line of c.items) {
       const p = products.find((x: any) => x.id === line.product_id)
       if (!p) continue
-      cart.addItem(p, c.store_id, c.store_name, c.delivery_fee ?? undefined)
+      cart.addItem(p)
       cart.setQty(p.id, line.quantity)
     }
     toast.success(`${c.items.length} Artikel aus ${c.chain} im Warenkorb`)
